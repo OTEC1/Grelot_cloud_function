@@ -5,6 +5,7 @@ import * as bycrypt from 'bcryptjs'
 import { db } from "./config/firebase";
 import { firestore } from "firebase-admin";
 import * as cloudinary from 'cloudinary';
+import * as AWS from 'aws-sdk'
 require("dotenv").config();
 const cors = corsModule(({ origin: true }))
 var Pushy = require('pushy');
@@ -44,14 +45,95 @@ export const ImgResize = functions.https.onRequest((request, respones)=>{
                     })
                  
                 });
+        });
 
-      
+   });
 
-       
 
-    });
 
+
+
+
+
+
+type VideoConstrants = {
+     url: any,
+     thumbnail:string
+}
+
+
+
+
+
+const bucket = new AWS.S3({
+    accessKeyId: process.env.REACT_APP_P1,
+    secretAccessKey: process.env.REACT_APP_P2,
+    apiVersion: process.env.REACT_APP_API_VERSION,
+    httpOptions: {timeout: 0}
 });
+
+
+
+
+
+
+
+
+export const DeletePost = functions.https.onRequest(async (request,response) => {
+    cors(request,response,async() => {
+
+            let e: VideoConstrants = request.body;
+            console.log(e.url);
+
+
+                        const   params = {
+                            Bucket: process.env.REACT_APP_P4!,
+                            Key:  e.thumbnail
+                        };
+        
+                            bucket.deleteObject(params)
+                              .on('httpDone', (e) => { 
+                                return response.json({
+                                    message : "Thumnail Uploaded"
+                                })
+                             })
+                                .send((err) => {
+                                if(err) {
+                                    return response.json({
+                                        message : "Snap error occurred: " +err
+                                    })
+                                }
+                            });
+                      })
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -59,7 +141,6 @@ export const ImgResize = functions.https.onRequest((request, respones)=>{
 type member = {
     data:string,
 }
-
 
 
 type Payload ={
@@ -152,7 +233,7 @@ export  const thumbs = functions.https.onRequest(async (request, response) => {
 export const listofproducts = functions.https.onRequest(async (request, response) => {
     cors(request,response, async () => {
         let list = ['Ad Category','Damax', 'Canvas material', 'Cutain for shirt', 'Cutain for House', 'Bridal satin', 
-                    'Douches', 'for material', 'Zucuba', 'Lycrea', 'Vevelt', 'Crepe','Chiffon',' stretching  Slik', 'Stretching tafeta'];
+                    'Douches', 'Tick fringe material', 'Zucuba', 'Lycra', 'Vevelt', 'Crepe','Chiffon',' Stretching  Slik', 'Stretching tafeta'];
                      
         return response.json({
             message:list
@@ -320,16 +401,18 @@ export const  webdealitGetAllPost = functions.https.onRequest(async (req,res) =>
 
 
 
-export const  webdealitGetSignlePost = functions.https.onRequest(async (req,res) => {
+export const  webdealitGetSignleUserPost = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
        
         try{
-        let e: RequestBody = req.body;   
-        let data = db.collection("WebdealitPostAd").doc("1A").collection(e.User.useremail).doc(e.UserPost.doc_id_b);
-        const service =   (await data.get()).data();
+        let e : RequestBody = req.body;
+        let raw_data: RequestBody  [] = [];   
+        let data = await db.collection("WebdealitPostAd").doc("1A").collection(e.User.useremail).get();
+        data.forEach((doc: any) => raw_data.push(doc.data()))   
+        
 
         return res.json({
-            message: service
+            message: raw_data
         })
         }
         catch (err) { 
@@ -573,20 +656,24 @@ export const  webdealitGetMovie= functions.https.onRequest(async (req,res) => {
 
 
 type MusicBody = {
-    User:{
+
+  Music:{
         name:string,
-        email:string
+        email:string,
         doc_id:string,
-    }
-    AdminMusic:{
-        title:string,
-        remarks:string,
+        music_thumbnail:string
+        music_video:string,
+        music_title:string,
+        music_url:string,
+        music_artist:string,
+        music_year:string,
+        downloadCount:number,
+        viewCount:number,
+        userType:string,
+        flag:boolean
         
     }
-    UserMusic:{
-        title:string,
-        remarks:string,
-    }
+ 
  }
 
 export const  webdealitAddMusic = functions.https.onRequest(async (req,res) => {
@@ -595,7 +682,7 @@ export const  webdealitAddMusic = functions.https.onRequest(async (req,res) => {
          try{
             let e: MusicBody = req.body;
             let a = db.collection("WebdealitMusic").doc();
-             e.User.doc_id = a.id;
+             e.Music.doc_id = a.id;
              a.set(e);
 
                return res.json({
@@ -634,6 +721,20 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
             })
         }
    
+    })
+})
+
+
+
+
+
+export const Webdealit_Genre = functions.https.onRequest(async (request, respones)=> {
+
+    cors(request, respones, async () => {
+        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Pop', 'AfroPop', 'Jazz', 'Gospel','Eletronic','Rock','RnB','Instrumental']
+        return respones.json({
+            message: list
+        })
     })
 })
 
