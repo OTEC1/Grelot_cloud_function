@@ -5,7 +5,8 @@ import * as bycrypt from 'bcryptjs'
 import { db } from "./config/firebase";
 import { firestore } from "firebase-admin";
 import * as cloudinary from 'cloudinary';
-import * as AWS from 'aws-sdk'
+import * as AWS from 'aws-sdk';
+import { v4 as uuid } from 'uuid';
 require("dotenv").config();
 const cors = corsModule(({ origin: true }))
 var Pushy = require('pushy');
@@ -305,6 +306,13 @@ export  const  pushyapi = functions.https.onRequest(async (request, respones) =>
 
 //Start of Webdealit functions
 
+type VisitCount = {
+    count:number,
+    date:any,
+    doc_id:string,
+    stamp:any,
+}
+
 type RegisterUser = {
 
     User:{
@@ -330,7 +338,7 @@ type RequestBody = {
     doc_id_a:string,
     doc_id_b: string,
     youtubeLink: string,
-    timestamp: number,
+    timestamp: any,
     date_time:string,
     cloudinaryPub: string,
     orientations:string,
@@ -344,15 +352,14 @@ type RequestBody = {
 
 export const  webdealitAddPost = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
-       
-
-        
+               
          try{
             let e: RequestBody = req.body;
             let a = db.collection("WebdealitPostAd").doc();
             let b = db.collection("WebdealitPostAd").doc("1A").collection(e.User.useremail).doc();
             e.UserPost.doc_id_a = a.id;
             e.UserPost.doc_id_b = b.id;
+            e.UserPost.timestamp = firestore.Timestamp.now()
             a.set(e);
             b.set(e);
            
@@ -379,7 +386,7 @@ export const  webdealitGetAllPost = functions.https.onRequest(async (req,res) =>
       
         try{
           const raw_data: RequestBody[] = [];
-          let data = await db.collection("WebdealitPostAd").get();
+          let data = await db.collection("WebdealitPostAd").orderBy("UserPost.timestamp","desc").limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
           return res.json({
@@ -396,6 +403,34 @@ export const  webdealitGetAllPost = functions.https.onRequest(async (req,res) =>
     })
 })
 
+
+
+
+
+
+
+
+export const  webdealitGetAllPostByViews = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+      
+        try{
+          const raw_data: RequestBody[] = [];
+          let data = await db.collection("WebdealitPostAd").orderBy("UserPost.views","desc").limit(100).get();
+          data.forEach((doc: any) => raw_data.push(doc.data()))   
+        
+          return res.json({
+            message: raw_data
+           })
+
+         }
+          catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+        
+    })
+})
 
 
 
@@ -569,6 +604,7 @@ export const webdealit_Movie_categories = functions.https.onRequest(async (reque
 
 
 
+
 export const webdealit_lock = functions.https.onRequest(async (request,respones) => {
 
     cors(request,respones, async () => {
@@ -596,6 +632,8 @@ type  MovieBody = {
     thumbnail_orentation:number,
     spin:number,
     doc_id:string,
+    timestamp:any,
+    downloadcount:number,
 }
 
 
@@ -607,10 +645,11 @@ export const  webdealitAddMovie= functions.https.onRequest(async (req,res) => {
             let e: MovieBody = req.body;
             let a = db.collection("WebdealitMovies").doc();
              e.doc_id = a.id;
+             e.timestamp = firestore.Timestamp.now();
              a.set(e);
 
                return res.json({
-                   message: "Movie Added "
+                   message: "Movie Added"
                })
 
              }
@@ -635,7 +674,7 @@ export const  webdealitGetMovie= functions.https.onRequest(async (req,res) => {
          try{
        
             const raw_data: MovieBody[] = [];
-            let data = await db.collection("WebdealitMovies").get();
+            let data = await db.collection("WebdealitMovies").orderBy("timestamp","desc").limit(50).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                return res.json({
@@ -655,6 +694,88 @@ export const  webdealitGetMovie= functions.https.onRequest(async (req,res) => {
 
 
 
+
+export const  webdealitGetMovieBydownloadCount = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+       
+            const raw_data: MovieBody[] = [];
+            let data = await db.collection("WebdealitMovies").orderBy("downloadcount","desc").limit(50).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+
+               return res.json({
+                   message: raw_data
+               })
+
+             }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+export const  webdealitGetMovieByName = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            const raw_data: MovieBody[] = [];
+            let e : MovieBody = req.body;
+            let data = await db.collection("WebdealitMusic").where("Music.music_title", "==", e.Mtitle).limit(100).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+
+                return res.json({
+                    message: raw_data
+                })
+
+        }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+
+export const  webdealitGetMovieUpdatedownloadCount = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            let errand ="Not Found !";
+            let e: MovieBody = req.body;
+            const r = db.collection("WebdealitMovies").doc(e.doc_id);
+             if((await r.get()).exists){
+                  r.update("downloadcount",firestore.FieldValue.increment(1));
+                  errand = "Updated"
+             }
+               
+               return res.json({
+                   message: errand
+               })
+
+             }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+
+
 type MusicBody = {
 
   Music:{
@@ -670,7 +791,8 @@ type MusicBody = {
         downloadCount:number,
         viewCount:number,
         userType:string,
-        flag:boolean
+        flag:boolean,
+        timestamp:any,
         
     }
  
@@ -680,9 +802,10 @@ export const  webdealitAddMusic = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
        
          try{
-            let e: MusicBody = req.body;
-            let a = db.collection("WebdealitMusic").doc();
+             let e: MusicBody = req.body;
+             let a = db.collection("WebdealitMusic").doc();
              e.Music.doc_id = a.id;
+             e.Music.timestamp = firestore.Timestamp.now();
              a.set(e);
 
                return res.json({
@@ -707,7 +830,7 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
          try{
        
             const raw_data: MusicBody[] = [];
-            let data = await db.collection("WebdealitMusic").get();
+            let data = await db.collection("WebdealitMusic").orderBy("Music.timestamp","desc").limit(120).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                return res.json({
@@ -728,6 +851,90 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
 
 
 
+
+export const  webdealitGetMusicByArtiseName = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            const raw_data: MusicBody[] = [];
+            let e : MusicBody = req.body;
+            let data = await db.collection("WebdealitMusic").where("Music.music_artist", "==", e.Music.music_artist).limit(100).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+
+                return res.json({
+                    message: raw_data
+                })
+
+        }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+
+
+
+export const  webdealitGetMusicByMusictitle = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            const raw_data: MusicBody[] = [];
+            let e : MusicBody = req.body;
+            let data = await db.collection("WebdealitMusic").where("Music.music_title", "==", e.Music.music_title).limit(50).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+            
+            return res.json({
+                message: raw_data
+            })    
+        }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+
+
+export const  webdealitGetMusicByLink = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            const raw_data: MusicBody[] = [];
+            let e : MusicBody = req.body;
+            let data = await db.collection("WebdealitMusic").where("Music.doc_id", "==", e.Music.doc_id).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+
+                return res.json({
+                    message: raw_data
+                })
+
+        }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+
+
+
+
 export const Webdealit_Genre = functions.https.onRequest(async (request, respones)=> {
 
     cors(request, respones, async () => {
@@ -738,4 +945,94 @@ export const Webdealit_Genre = functions.https.onRequest(async (request, respone
     })
 })
 
+
+
+
+
+function stamp(){
+    var dt = new Date(firestore.Timestamp.now().toDate().toUTCString()).toString()
+    var sub = dt.substring(0,dt.indexOf(":")-2).trimEnd();
+    return sub;
+
+}
+
+
+
+export const  webdealitVisitCount = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+         try{
+             let e: VisitCount = req.body;
+             let time = db.collection("WebdealitVisitorTrack").listDocuments();
+             const day =  db.collection("WebdealitVisitorTrack").doc();
+             e.date = stamp();
+             e.stamp = firestore.Timestamp.now();
+             if((await time).length <= 0){
+                  e.doc_id = day.id;
+                  day.set(e);
+             }else{
+                  let current = await  db.collection("WebdealitVisitorTrack").orderBy("stamp","desc").limit(1).get();  
+                  current.forEach((doc: any) => e = (doc.data()))  
+                    if(stamp() === e.date){
+                       
+                           db.collection("WebdealitVisitorTrack").doc(e.doc_id).update("count",firestore.FieldValue.increment(1))
+                     } else{
+                        let e: VisitCount = req.body;
+                        e.date = stamp();
+                        e.stamp = firestore.Timestamp.now();
+                        e.doc_id = day.id;
+                        day.set(e);
+                    }
+                }
+
+               return res.json({
+                   message:"OK"
+               })
+
+             }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
+
+
+
+export const webdealitVisitGetCount  =  functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+    try{
+        let e: VisitCount  [] = [];
+        let current = await  db.collection("WebdealitVisitorTrack").orderBy("stamp","desc").limit(500).get();  
+        current.forEach((doc: any) => e.push(doc.data()));  
+
+        return  res.json({
+            message: e
+        })
+       }catch(err){
+        return  res.json({
+                message: err as Error
+            })
+        }
+    });
+});
+
+
 //End of Webdealit functions
+
+
+
+
+
+
+
+export const Noman_id_genrator = functions.https.onRequest(async (request, respones)=> {
+
+    cors(request, respones, async () => {
+        respones.json({
+            message: uuid()
+        })
+    })
+
+})
