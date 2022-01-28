@@ -793,6 +793,8 @@ type MusicBody = {
         userType:string,
         flag:boolean,
         timestamp:any,
+        genre:string,
+        list:any,
         
     }
  
@@ -849,6 +851,37 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
 
 
 
+
+
+
+
+export const  webdealitGetMusicByArtiseSort = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+       
+         try{
+            const raw_data: MusicBody[] = [];
+            let e1 = req.query.query1;
+            let e2 = req.query.query2;
+            let e3 = req.query.query3;
+            let e4 = req.query.query4;
+            let list = [e1,e2,e3,e4];
+            console.log(list);
+            let data = await db.collection("WebdealitMusic").where("Music.genre", "in", list).limit(100).get();
+            data.forEach((doc: any) => raw_data.push(doc.data()))  
+
+                return res.json({
+                    message: raw_data
+                })
+
+        }
+        catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+   
+    })
+})
 
 
 
@@ -938,7 +971,7 @@ export const  webdealitGetMusicByLink = functions.https.onRequest(async (req,res
 export const Webdealit_Genre = functions.https.onRequest(async (request, respones)=> {
 
     cors(request, respones, async () => {
-        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Pop', 'AfroPop', 'Jazz', 'Gospel','Eletronic','Rock','RnB','Instrumental']
+        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Hip Hop', 'AfroPop', 'Jazz',"Pop", 'Gospel','Electronic','Rock','RnB','Instrumental',"Soul","Tropical","Culture"]
         return respones.json({
             message: list
         })
