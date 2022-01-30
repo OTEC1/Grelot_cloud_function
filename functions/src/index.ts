@@ -800,6 +800,12 @@ type MusicBody = {
  
  }
 
+
+
+
+
+
+ 
 export const  webdealitAddMusic = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
        
@@ -1033,6 +1039,7 @@ export const  webdealitVisitCount = functions.https.onRequest(async (req,res) =>
 
 
 
+
 export const webdealitVisitGetCount  =  functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
     try{
@@ -1050,6 +1057,23 @@ export const webdealitVisitGetCount  =  functions.https.onRequest(async (req,res
         }
     });
 });
+
+
+
+
+export const webdealitHomePageTopList  =  functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+        
+        let list = ["Bitcoin rate", "NFT trends", "Gift card","Ethereum","DeFi Trends","Coinbase news"]
+
+        return res.json({
+            message: list
+        })
+
+    })
+})
+
+
 
 
 //End of Webdealit functions
