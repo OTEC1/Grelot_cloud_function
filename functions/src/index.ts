@@ -12,11 +12,7 @@ const cors = corsModule(({ origin: true }))
 var Pushy = require('pushy');
 
 
-
-
-
-
-type BaseUrl ={
+type BaseUrl = {
     url:string,
     publicface:string,
 }
@@ -291,6 +287,11 @@ export  const  pushyapi = functions.https.onRequest(async (request, respones) =>
         })
     })
 })
+
+
+
+
+
 //grelot function End
 
 
@@ -409,6 +410,28 @@ export const  webdealitGetAllPost = functions.https.onRequest(async (req,res) =>
 
 
 
+export const  webdealitGetPostbylink = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+      
+        try{
+          const m :RequestBody = req.body;
+          let raw_data =  db.collection("WebdealitPostAd").doc("1A").collection(m.User.useremail).doc(m.UserPost.doc_id_b);
+          return res.json({
+            message: (await raw_data.get()).data()
+        })
+
+         }
+          catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+        
+    })
+})
+
+
+
 
 export const  webdealitGetAllPostByViews = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
@@ -431,6 +454,34 @@ export const  webdealitGetAllPostByViews = functions.https.onRequest(async (req,
         
     })
 })
+
+
+
+
+
+export const  webdealitGetAllPostByOrientation = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+      
+        try{
+          const e : RequestBody = req.body;
+          const raw_data: RequestBody[] = [];
+          let data = await db.collection("WebdealitPostAd").where("UserPost.orientations","==",e.UserPost.orientations).limit(100).get();
+          data.forEach((doc: any) => raw_data.push(doc.data()))   
+        
+          return res.json({
+            message: raw_data
+           })
+
+         }
+          catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+        
+    })
+})
+
 
 
 
@@ -858,9 +909,6 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
 
 
 
-
-
-
 export const  webdealitGetMusicByArtiseSort = functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
        
@@ -1064,7 +1112,7 @@ export const webdealitVisitGetCount  =  functions.https.onRequest(async (req,res
 export const webdealitHomePageTopList  =  functions.https.onRequest(async (req,res) => {
     cors(req,res, async () => {
         
-        let list = ["Bitcoin rate", "NFT trends", "Gift card","Ethereum","DeFi Trends","Coinbase news"]
+        let list = ["Bitcoin rate", "NFT trends", "Gift card","Ethereum","DeFi trends","Coinbase"]
 
         return res.json({
             message: list
@@ -1074,6 +1122,74 @@ export const webdealitHomePageTopList  =  functions.https.onRequest(async (req,r
 })
 
 
+
+
+export const webdealitRidirectUrl = functions.https.onRequest(async (req,res) => {
+    cors(req,res,async () => {
+        console.log(req.query.key)
+    })
+})
+
+
+
+
+
+export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
+    cors(req,res,async () => {
+        
+       let i = req.query.i!;
+       let t = req.query.t!;
+       let a = req.query.a!;
+       let d= req.query.d!;
+       let s = req.query.s!
+       let m = req.query.m!;
+
+ 
+    const ua = req.headers['user-agent'];
+    console.log(ua, "LOG");
+
+
+    if( ua === "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
+            res.status(200).send(`<!doctype html>
+            <head>
+            <title>Webfly blog</title>
+            <meta property="og:url"           content="https://webfly.click" />
+            <meta property="og:type"          content="website" />
+            <meta property="og:title"         content=${t} />
+            <meta property="og:description"   content=${a} />
+            <meta property="og:image"         content=${i} />
+            </head>
+            </html>`);
+    else
+            res.redirect(redireactUrl(d,s,a,m)) 
+            });
+})
+
+
+
+
+ 
+
+
+
+function redireactUrl(d:any, s:any, a:any, m:any){
+    let url:any;
+    let frame,useremail,views,doc_id_b,caller;
+
+    if(s === "m")
+        url = "https://webfly.click/musicquerylink/"+d
+    else
+        if(s === "p"){
+            frame = a;
+            useremail = m;
+            views=0;
+            doc_id_b=d
+            caller = "p"
+
+          url="https://webfly.click/explorecontent/"+frame+"/"+useremail+"/"+views+"/"+caller+"/"+doc_id_b
+        }
+    return url
+}
 
 
 //End of Webdealit functions
