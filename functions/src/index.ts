@@ -1143,24 +1143,34 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
        let d= req.query.d!;
        let s = req.query.s!
        let m = req.query.m!;
+       let blog = "WEBFLY BLOG";
 
  
     const ua = req.headers['user-agent'];
     console.log(ua, "LOG");
 
 
-    if( ua === "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)")
-            res.status(200).send(`<!doctype html>
-            <head>
-            <title>Webfly blog</title>
-            <meta property="og:url"           content="https://webfly.click" />
-            <meta property="og:type"          content="website" />
-            <meta property="og:title"         content=${t} />
-            <meta property="og:description"   content=${a} />
-            <meta property="og:image"         content=${i} />
-            </head>
-            </html>`);
-    else
+    if( ua === "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"){
+            res.status(200).send(`<!doctype html xmlns="http://www.w3.org/1999/xhtml"
+                                            xmlns:og="http://ogp.me/ns#"
+                                            xmlns:fb="https://www.facebook.com/2008/fbml">
+                                            <head>
+                                            <title>${blog} </title>
+                                            <meta property="og:url"           content="https://us-central1-grelots-ad690.cloudfunctions.net/dynamicpostRender"/>
+                                            <meta property="og:type"          content="website" />
+                                            <meta property="og:title"         content=${t} />
+                                            <meta property="og:description"   content=${a} />
+                                            <meta property="og:image"         content=${i} />
+                                            <meta property="og:image:type"    content="image/jpeg"/>
+                                            <meta property="og:image:width:   content="100%"/>
+                                            <meta property="og:image:height:  content="200"/>
+                                            </head>
+                                            <img src="${i}"/>
+                                            <h3>${t}</h3>
+                                            <h4>${a}</h4>
+                                            <h5>${i}</h5>
+                                            </html>`);
+     } else
             res.redirect(redireactUrl(d,s,a,m)) 
             });
 })
