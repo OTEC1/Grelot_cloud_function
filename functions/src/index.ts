@@ -1171,7 +1171,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
                                             <h5>${i}</h5>
                                             </html>`);
      } else
-            res.redirect(redireactUrl(d,s,a,m)) 
+            res.redirect(redireactUrl(d,s,a,m))  
             });
 })
 
