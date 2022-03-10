@@ -2,7 +2,7 @@ import * as functions from "firebase-functions";
 import * as corsModule from 'cors';
 import * as encrpty from 'crypto-js';
 import * as bycrypt from 'bcryptjs'
-import { db } from "./config/firebase";
+import { admin, db } from "./config/firebase";
 import { firestore } from "firebase-admin";
 import * as cloudinary from 'cloudinary';
 import * as AWS from 'aws-sdk';
@@ -11,125 +11,7 @@ require("dotenv").config();
 const cors = corsModule(({ origin: true }))
 var Pushy = require('pushy');
 
-
-type BaseUrl = {
-    url:string,
-    publicface:string,
-}
-
-//Image Resizer
-export const ImgResize = functions.https.onRequest((request, respones)=>{
-
-    cors(request,respones,()=>{
-        
-        let  e: BaseUrl = request.body;
-
-        console.log(e.publicface, e.url);
-
-        cloudinary.v2.config({
-            cloud_name:process.env.REACT_APP_CLOUNDINARY_NAME,
-            api_key:process.env.REACT_APP_CLOUDINARY_KEY,
-            api_secret:process.env.REACT_APP_CLOUNDINARY_SECRET
-        })
-
-        cloudinary.v2.uploader.upload(e.url,
-            {public_id:e.publicface},
-            function(err,result){
-                    console.log(err);
-
-                    return respones.json({
-                        message: result?.created_at
-                    })
-                 
-                });
-        });
-
-   });
-
-
-
-
-
-
-
-
-type VideoConstrants = {
-     url: any,
-     thumbnail:string
-}
-
-
-
-
-
-const bucket = new AWS.S3({
-    accessKeyId: process.env.REACT_APP_P1,
-    secretAccessKey: process.env.REACT_APP_P2,
-    apiVersion: process.env.REACT_APP_API_VERSION,
-    httpOptions: {timeout: 0}
-});
-
-
-
-
-
-
-
-
-export const DeletePost = functions.https.onRequest(async (request,response) => {
-    cors(request,response,async() => {
-
-            let e: VideoConstrants = request.body;
-            console.log(e.url);
-
-
-                        const   params = {
-                            Bucket: process.env.REACT_APP_P4!,
-                            Key:  e.thumbnail
-                        };
-        
-                            bucket.deleteObject(params)
-                              .on('httpDone', (e) => { 
-                                return response.json({
-                                    message : "Thumnail Uploaded"
-                                })
-                             })
-                                .send((err) => {
-                                if(err) {
-                                    return response.json({
-                                        message : "Snap error occurred: " +err
-                                    })
-                                }
-                            });
-                      })
-})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 
 
 
 
@@ -177,6 +59,25 @@ type GetDatas = {
 
 
 
+
+type  Newuser = {
+
+    User:{
+        UserToken:string,
+        businessaddress:string,
+        businessname:string,
+        devicetokeen:string,
+        email:string,
+        img_url:string,
+        usertype:string,
+        whatappnumber:string,
+        password:string,
+        doc_id:string,
+    }
+}
+
+
+
 export const Grelot_lock = functions.https.onRequest(async (request,respones) => {
 
     cors(request,respones, async () => {
@@ -195,7 +96,7 @@ export  const records = functions.https.onRequest(async (request, response) => {
     cors(request,response, async () => {
        
             let e:member = request.body;
-             const citiesRef =  db.collection('Vendor Posts').doc(e.data);
+             const citiesRef =  db.collection(process.env.REACT_APP_VENDORPOST!).doc(e.data);
              const service =  (await citiesRef.get()).data();
 
             return response.json({
@@ -212,7 +113,7 @@ export  const thumbs = functions.https.onRequest(async (request, response) => {
     cors(request,response, async () => {
        
             let e:GetDatas = request.body;
-            const data =  db.collection('Vendor Posts').doc(e.Client.doc_id).collection("Vendor Rating").doc(e.Client.doc_id); 
+            const data =  db.collection(process.env.REACT_APP_VENDORPOST!).doc(e.Client.doc_id).collection(process.env.REACT_APP_REACTION!).doc(e.Client.doc_id); 
              if(!(await data.get()).exists)
                  data.set(e);
             else
@@ -266,7 +167,7 @@ export const Notificationpush = functions.https.onRequest(async (request, respon
         })
      }
      return response.json({
-        message: "Sent  Succesfully  to "+id
+            message: "Sent  Succesfully  to "+id
         })
       })
     })
@@ -291,7 +192,65 @@ export  const  pushyapi = functions.https.onRequest(async (request, respones) =>
 
 
 
+export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
 
+    cors(req,res, async() => {
+        try{
+
+            let user: Newuser = req.body
+
+            admin.auth().createUser({
+
+                                email: user.User.email,  
+                                emailVerified:false,
+                                phoneNumber:user.User.whatappnumber,
+                                password:user.User.password,
+                                displayName: user.User.businessname,
+                                disabled:false,
+
+                               }).then(async (useRecord) => {
+
+                                user.User.UserToken = useRecord.uid!;
+                              
+                                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
+                                            .doc(user.User.usertype)
+                                              .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc();
+
+                                user.User.doc_id = docs.id;
+                                user.User.password = await bycrypt.hash(user.User.password, 12)
+                                docs.set(user);
+
+                                return  res.json({
+                                    message: user.User.UserToken ? "Account created " : "Error creating user !"            
+                            })
+                         })
+                            .catch(err => {
+
+                                return  res.json({
+                                    message: err as Error           
+                            })
+                            })
+                    
+          }catch(err){
+
+            return res.json({
+                message: err as Error
+            })
+         }
+    })
+})
+
+
+
+
+
+
+export const Paid_cart_uploaded = functions.https.onRequest(async(req,res) => {
+
+    cors(req,res, async () => {
+
+    })
+})
 //grelot function End
 
 
@@ -305,8 +264,12 @@ export  const  pushyapi = functions.https.onRequest(async (request, respones) =>
 
 
 
-//Start of Webdealit functions
 
+
+
+
+
+//Start of Webdealit functions
 type VisitCount = {
     count:number,
     date:any,
@@ -356,18 +319,16 @@ export const  webdealitAddPost = functions.https.onRequest(async (req,res) => {
                
          try{
             let e: RequestBody = req.body;
-            let a = db.collection("WebdealitPostAd").doc();
-            let b = db.collection("WebdealitPostAd").doc("1A").collection(e.User.useremail).doc();
+            let a = db.collection(process.env.REACT_APP_POST_SECTION!).doc();
+            let b = db.collection(process.env.REACT_APP_POST_SECTION!).doc("1A").collection(e.User.useremail).doc();
             e.UserPost.doc_id_a = a.id;
             e.UserPost.doc_id_b = b.id;
             e.UserPost.timestamp = firestore.Timestamp.now()
             a.set(e);
             b.set(e);
-           
                return res.json({
                    message: "Ok 200"
                })
-
              }
         catch (err) { 
             return res.json({
@@ -387,7 +348,7 @@ export const  webdealitGetAllPost = functions.https.onRequest(async (req,res) =>
       
         try{
           const raw_data: RequestBody[] = [];
-          let data = await db.collection("WebdealitPostAd").orderBy("UserPost.timestamp","desc").limit(100).get();
+          let data = await db.collection(process.env.REACT_APP_POST_SECTION!).orderBy("UserPost.timestamp","desc").limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
           return res.json({
@@ -415,7 +376,7 @@ export const  webdealitGetPostbylink = functions.https.onRequest(async (req,res)
       
         try{
           const m :RequestBody = req.body;
-          let raw_data =  db.collection("WebdealitPostAd").doc("1A").collection(m.User.useremail).doc(m.UserPost.doc_id_b);
+          let raw_data =  db.collection(process.env.REACT_APP_POST_SECTION!).doc("1A").collection(m.User.useremail).doc(m.UserPost.doc_id_b);
           return res.json({
             message: (await raw_data.get()).data()
         })
@@ -438,7 +399,7 @@ export const  webdealitGetAllPostByViews = functions.https.onRequest(async (req,
       
         try{
           const raw_data: RequestBody[] = [];
-          let data = await db.collection("WebdealitPostAd").orderBy("UserPost.views","desc").limit(100).get();
+          let data = await db.collection(process.env.REACT_APP_POST_SECTION!).orderBy("UserPost.views","desc").limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
           return res.json({
@@ -465,7 +426,7 @@ export const  webdealitGetAllPostByOrientation = functions.https.onRequest(async
         try{
           const e : RequestBody = req.body;
           const raw_data: RequestBody[] = [];
-          let data = await db.collection("WebdealitPostAd").where("UserPost.orientations","==",e.UserPost.orientations).limit(100).get();
+          let data = await db.collection(process.env.REACT_APP_POST_SECTION!).where("UserPost.orientations","==",e.UserPost.orientations).limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
           return res.json({
@@ -493,7 +454,7 @@ export const  webdealitGetSignleUserPost = functions.https.onRequest(async (req,
         try{
         let e : RequestBody = req.body;
         let raw_data: RequestBody  [] = [];   
-        let data = await db.collection("WebdealitPostAd").doc("1A").collection(e.User.useremail).get();
+        let data = await db.collection(process.env.REACT_APP_POST_SECTION!).doc("1A").collection(e.User.useremail).get();
         data.forEach((doc: any) => raw_data.push(doc.data()))   
         
 
@@ -518,40 +479,35 @@ export const  webdealitGetSignleUserPost = functions.https.onRequest(async (req,
 export const  webdealit_thumbsUp_and_views = functions.https.onRequest( async (request, respones) => {
 
 cors(request,respones, async () => {
+
     let a : RequestBody = request.body
-
-    try{
-
-        if(a.UserPost.likes !== 0){
-            db.collection("WebdealitPostAd").doc(a.UserPost.doc_id_a)
-            .update("UserPost.likes", firestore.FieldValue.increment(a.UserPost.likes));
-                db.collection("WebdealitPostAd").doc("1A").collection(a.User.useremail)
-                .doc(a.UserPost.doc_id_b).update("UserPost.likes",firestore.FieldValue.increment(a.UserPost.likes));
-            }else{
-                db.collection("WebdealitPostAd").doc(a.UserPost.doc_id_a)
-                .update("UserPost.views",firestore.FieldValue.increment(a.UserPost.views));
-                    db.collection("WebdealitPostAd").doc("1A").collection(a.User.useremail)
-                    .doc(a.UserPost.doc_id_b).update("UserPost.views",firestore.FieldValue.increment(a.UserPost.views));
-
-            }
-
-
-        return respones.json({
-            message: "Ok"
-        })
-
+         try{
+                if(a.UserPost.likes !== 0)
+                    REPEAT_ACTION(a.UserPost.likes,"UserPost.likes")
+                else         
+                    REPEAT_ACTION(a.UserPost.views,"UserPost.views")
+                
+                return respones.json({
+                    message: "Ok"
+                })
             }catch(err){
-
                 return respones.json({
                     message: err as Error
                 })
             }   
-         
-
-       
-
     })
 })
+
+
+
+
+function REPEAT_ACTION(a:any,table:string) {
+    db.collection(process.env.REACT_APP_POST_SECTION!).doc(a.UserPost.doc_id_a)
+    .update(table, firestore.FieldValue.increment(a));
+        db.collection(process.env.REACT_APP_POST_SECTION!).doc("1A").collection(a.User.useremail)
+        .doc(a.UserPost.doc_id_b).update(table,firestore.FieldValue.increment(a));
+}
+
 
 
 export const  webdealit_RegisterUser = functions.https.onRequest(async (request,respones) => {
@@ -561,7 +517,7 @@ export const  webdealit_RegisterUser = functions.https.onRequest(async (request,
 
          let confirm;
          let e : RegisterUser = request.body
-         let data = db.collection("WebdealitRegisterUser").doc(e.User.email);
+         let data = db.collection(process.env.REACT_APP_NEW_MEMBERS!).doc(e.User.email);
          e.User.doc_id = data.id;
 
          if(!(await data.get()).exists){
@@ -599,7 +555,7 @@ export const  webdealitSignInUser = functions.https.onRequest(async (request,res
             var bytes  = encrpty.AES.decrypt(e.User.password, process.env.REACT_APP_KEYS!);
             var text = bytes.toString(encrpty.enc.Utf8);
 
-             let data = db.collection("WebdealitRegisterUser").doc(e.User.email);
+             let data = db.collection(process.env.REACT_APP_NEW_MEMBERS!).doc(e.User.email);
 
              if((await data.get()).exists){
                     const Userservice =   (await data.get()).data();
@@ -694,7 +650,7 @@ export const  webdealitAddMovie= functions.https.onRequest(async (req,res) => {
        
          try{
             let e: MovieBody = req.body;
-            let a = db.collection("WebdealitMovies").doc();
+            let a = db.collection(process.env.REACT_APP_SCREEN!).doc();
              e.doc_id = a.id;
              e.timestamp = firestore.Timestamp.now();
              a.set(e);
@@ -725,19 +681,17 @@ export const  webdealitGetMovie= functions.https.onRequest(async (req,res) => {
          try{
        
             const raw_data: MovieBody[] = [];
-            let data = await db.collection("WebdealitMovies").orderBy("timestamp","desc").limit(50).get();
+            let data = await db.collection(process.env.REACT_APP_SCREEN!).orderBy("timestamp","desc").limit(50).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
-
                return res.json({
                    message: raw_data
                })
-
              }
-        catch (err) { 
-            return res.json({
-                message: err as Error
-            })
-        }
+            catch (err) { 
+                return res.json({
+                    message: err as Error
+                })
+            }
    
     })
 })
@@ -752,7 +706,7 @@ export const  webdealitGetMovieBydownloadCount = functions.https.onRequest(async
          try{
        
             const raw_data: MovieBody[] = [];
-            let data = await db.collection("WebdealitMovies").orderBy("downloadcount","desc").limit(50).get();
+            let data = await db.collection(process.env.REACT_APP_SCREEN!).orderBy("downloadcount","desc").limit(50).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                return res.json({
@@ -760,11 +714,11 @@ export const  webdealitGetMovieBydownloadCount = functions.https.onRequest(async
                })
 
              }
-        catch (err) { 
-            return res.json({
-                message: err as Error
-            })
-        }
+            catch (err) { 
+                return res.json({
+                    message: err as Error
+                })
+            }
    
     })
 })
@@ -772,12 +726,13 @@ export const  webdealitGetMovieBydownloadCount = functions.https.onRequest(async
 
 
 export const  webdealitGetMovieByName = functions.https.onRequest(async (req,res) => {
+  
     cors(req,res, async () => {
        
          try{
             const raw_data: MovieBody[] = [];
             let e : MovieBody = req.body;
-            let data = await db.collection("WebdealitMusic").where("Music.music_title", "==", e.Mtitle).limit(100).get();
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.music_title", "==", e.Mtitle).limit(100).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                 return res.json({
@@ -803,7 +758,8 @@ export const  webdealitGetMovieUpdatedownloadCount = functions.https.onRequest(a
          try{
             let errand ="Not Found !";
             let e: MovieBody = req.body;
-            const r = db.collection("WebdealitMovies").doc(e.doc_id);
+            const r = db.collection(process.env.REACT_APP_SCREEN!).doc(e.doc_id);
+
              if((await r.get()).exists){
                   r.update("downloadcount",firestore.FieldValue.increment(1));
                   errand = "Updated"
@@ -814,11 +770,12 @@ export const  webdealitGetMovieUpdatedownloadCount = functions.https.onRequest(a
                })
 
              }
-        catch (err) { 
-            return res.json({
-                message: err as Error
-            })
-        }
+
+            catch (err) { 
+                return res.json({
+                    message: err as Error
+                })
+            }
    
     })
 })
@@ -862,7 +819,7 @@ export const  webdealitAddMusic = functions.https.onRequest(async (req,res) => {
        
          try{
              let e: MusicBody = req.body;
-             let a = db.collection("WebdealitMusic").doc();
+             let a = db.collection(process.env.REACT_APP_SOUND!).doc();
              e.Music.doc_id = a.id;
              e.Music.timestamp = firestore.Timestamp.now();
              a.set(e);
@@ -889,7 +846,7 @@ export const  webdealitGetMusic= functions.https.onRequest(async (req,res) => {
          try{
        
             const raw_data: MusicBody[] = [];
-            let data = await db.collection("WebdealitMusic").orderBy("Music.timestamp","desc").limit(120).get();
+            let data = await db.collection(process.env.REACT_APP_SOUND!).orderBy("Music.timestamp","desc").limit(120).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                return res.json({
@@ -920,7 +877,7 @@ export const  webdealitGetMusicByArtiseSort = functions.https.onRequest(async (r
             let e4 = req.query.query4;
             let list = [e1,e2,e3,e4];
             console.log(list);
-            let data = await db.collection("WebdealitMusic").where("Music.genre", "in", list).limit(100).get();
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.genre", "in", list).limit(100).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                 return res.json({
@@ -945,7 +902,7 @@ export const  webdealitGetMusicByArtiseName = functions.https.onRequest(async (r
          try{
             const raw_data: MusicBody[] = [];
             let e : MusicBody = req.body;
-            let data = await db.collection("WebdealitMusic").where("Music.music_artist", "==", e.Music.music_artist).limit(100).get();
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.music_artist", "==", e.Music.music_artist).limit(100).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                 return res.json({
@@ -973,7 +930,7 @@ export const  webdealitGetMusicByMusictitle = functions.https.onRequest(async (r
          try{
             const raw_data: MusicBody[] = [];
             let e : MusicBody = req.body;
-            let data = await db.collection("WebdealitMusic").where("Music.music_title", "==", e.Music.music_title).limit(50).get();
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.music_title", "==", e.Music.music_title).limit(50).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
             
             return res.json({
@@ -999,7 +956,8 @@ export const  webdealitGetMusicByLink = functions.https.onRequest(async (req,res
          try{
             const raw_data: MusicBody[] = [];
             let e : MusicBody = req.body;
-            let data = await db.collection("WebdealitMusic").where("Music.doc_id", "==", e.Music.doc_id).get();
+
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.doc_id", "==", e.Music.doc_id).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
                 return res.json({
@@ -1025,7 +983,7 @@ export const  webdealitGetMusicByLink = functions.https.onRequest(async (req,res
 export const Webdealit_Genre = functions.https.onRequest(async (request, respones)=> {
 
     cors(request, respones, async () => {
-        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Hip Hop', 'AfroPop', 'Jazz',"Pop", 'Gospel','Electronic','Rock','RnB','Instrumental',"Soul","Tropical","Culture"]
+        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Hip Hop', 'AfroPop', 'Jazz',"Pop", 'Gospel','Electronic','Rock','RnB','Instrumental',"Soul","Tropical","Culture", "Dj mix tape"]
         return respones.json({
             message: list
         })
@@ -1049,26 +1007,25 @@ export const  webdealitVisitCount = functions.https.onRequest(async (req,res) =>
     cors(req,res, async () => {
          try{
              let e: VisitCount = req.body;
-             let time = db.collection("WebdealitVisitorTrack").listDocuments();
-             const day =  db.collection("WebdealitVisitorTrack").doc();
+             let time = db.collection(process.env.REACT_APP_TRACK!).listDocuments();
+             const day =  db.collection(process.env.REACT_APP_TRACK!).doc();
              e.date = stamp();
              e.stamp = firestore.Timestamp.now();
              if((await time).length <= 0){
                   e.doc_id = day.id;
                   day.set(e);
              }else{
-                  let current = await  db.collection("WebdealitVisitorTrack").orderBy("stamp","desc").limit(1).get();  
+                  let current = await  db.collection(process.env.REACT_APP_TRACK!).orderBy("stamp","desc").limit(1).get();  
                   current.forEach((doc: any) => e = (doc.data()))  
-                    if(stamp() === e.date){
-                       
-                           db.collection("WebdealitVisitorTrack").doc(e.doc_id).update("count",firestore.FieldValue.increment(1))
-                     } else{
+                    if(stamp() === e.date)
+                           db.collection(process.env.REACT_APP_TRACK!).doc(e.doc_id).update("count",firestore.FieldValue.increment(1))
+                     else{
                         let e: VisitCount = req.body;
                         e.date = stamp();
                         e.stamp = firestore.Timestamp.now();
                         e.doc_id = day.id;
                         day.set(e);
-                    }
+                       }
                 }
 
                return res.json({
@@ -1092,7 +1049,7 @@ export const webdealitVisitGetCount  =  functions.https.onRequest(async (req,res
     cors(req,res, async () => {
     try{
         let e: VisitCount  [] = [];
-        let current = await  db.collection("WebdealitVisitorTrack").orderBy("stamp","desc").limit(500).get();  
+        let current = await  db.collection(process.env.REACT_APP_TRACK!).orderBy("stamp","desc").limit(500).get();  
         current.forEach((doc: any) => e.push(doc.data()));  
 
         return  res.json({
@@ -1219,3 +1176,111 @@ export const Noman_id_genrator = functions.https.onRequest(async (request, respo
     })
 
 })
+
+
+
+
+
+
+
+
+
+type BaseUrl = {
+    url:string,  
+    publicface:string,
+}
+
+//Image Resizer
+export const ImgResize = functions.https.onRequest((request, respones)=>{
+
+ 
+    cors(request,respones,()=>{
+        let  e: BaseUrl = request.body;
+        console.log(e.publicface, e.url);
+        cloudinary.v2.config({
+            cloud_name:process.env.REACT_APP_CLOUNDINARY_NAME,
+            api_key:process.env.REACT_APP_CLOUDINARY_KEY,
+            api_secret:process.env.REACT_APP_CLOUNDINARY_SECRET
+        })
+
+        cloudinary.v2.uploader.upload(e.url,
+            {public_id:e.publicface},
+            function(err,result){
+                    console.log(err);
+
+                    return respones.json({
+                        message: result?.created_at
+                    })
+                 
+                });
+        });
+
+   });
+
+
+
+
+
+
+
+
+type VideoConstrants = {
+     url: any,
+     thumbnail:string
+}
+
+
+
+
+
+const bucket = new AWS.S3({
+    accessKeyId: process.env.REACT_APP_P1,
+    secretAccessKey: process.env.REACT_APP_P2,
+    apiVersion: process.env.REACT_APP_API_VERSION,
+    httpOptions: {timeout: 0}
+});
+
+
+
+
+
+
+
+
+export const DeletePost = functions.https.onRequest(async (request,response) => {
+    cors(request,response,async() => {
+
+            let e: VideoConstrants = request.body;
+            console.log(e.url);
+
+
+                        const   params = {
+                            Bucket: process.env.REACT_APP_P4!,
+                            Key:  e.thumbnail
+                        };
+        
+                            bucket.deleteObject(params)
+                              .on('httpDone', (e) => { 
+                                return response.json({
+                                    message : "Thumnail Uploaded"
+                                })
+                             })
+                                .send((err) => {
+                                if(err) {
+                                    return response.json({
+                                        message : "Snap error occurred: " +err
+                                    })
+                                }
+                            });
+                      })
+})
+
+
+
+
+
+
+
+
+
+

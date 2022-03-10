@@ -4,13 +4,17 @@ import * as functions from 'firebase-functions'
 
 
 
+
+
+
+
 admin.initializeApp({
     credential: admin.credential.cert({
         privateKey: functions.config().private.key.replace(/\\n/g, '\n'),
         projectId: functions.config().project.id,
         clientEmail: functions.config().client.email
     }),
-     databaseURL: 'https://grelot-c7a70.firebaseio.com'
+     databaseURL: "https://grelot-c7a70.firebaseio.com"
 
 })
 
@@ -18,6 +22,6 @@ admin.initializeApp({
 
 
 
-const db = admin.firestore()
+const db = admin.firestore();
 db.settings( { timestampsInSnapshots: true })
-export { admin , db };
+export { admin , db};
