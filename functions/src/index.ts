@@ -1176,7 +1176,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
 
 function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
     let url:any;
-    let frame,useremail,views,doc_id_b,caller;
+    let frame,useremail,views,doc_id_b;
 
     if(s === "m")
         url = "https://webfly.click/Musicsearch?M="+t
@@ -1186,8 +1186,7 @@ function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
             useremail = m;
             views=0;
             doc_id_b=d
-            caller = "p"
-            url="https://webfly.click/Explorecontent/"+frame+"/"+useremail+"/"+views+"/"+caller+"/"+doc_id_b
+            url=`https://webfly.click/Explorecontent?frame="${frame}&useremail=${useremail}&views=${views}&caller=${s}&doc_id_b=${doc_id_b}`;
         }
     return url
 }
