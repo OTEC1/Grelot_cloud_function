@@ -1,5 +1,4 @@
 import * as functions from "firebase-functions";
-import * as corsModule from 'cors';
 import * as encrpty from 'crypto-js';
 import * as bycrypt from 'bcryptjs'
 import { admin, db } from "./config/firebase";
@@ -7,6 +6,7 @@ import { firestore } from "firebase-admin";
 import * as cloudinary from 'cloudinary';
 import * as AWS from 'aws-sdk';
 import { v4 as uuid } from 'uuid';
+import * as corsModule from 'cors';
 require("dotenv").config();
 const cors = corsModule(({ origin: true }))
 var Pushy = require('pushy');
@@ -46,6 +46,8 @@ type Payload ={
 }
 
 
+
+
 type GetDatas = {
     Client: {
         doc_id:string,
@@ -63,7 +65,7 @@ type GetDatas = {
 type  Newuser = {
 
     User:{
-        UserToken:string,
+        Usertoken:string,
         businessaddress:string,
         businessname:string,
         devicetokeen:string,
@@ -78,16 +80,13 @@ type  Newuser = {
 
 
 
-export const Grelot_lock = functions.https.onRequest(async (request,respones) => {
-
-    cors(request,respones, async () => {
-        
-        let intake =  {"p1":process.env.REACT_APP_P1, "p2":process.env.REACT_APP_P2, "p3":process.env.REACT_APP_P4}
-
-        return respones.json({
-            message: intake
-        })
-    })
+export const Grelot_lock = functions.https.onRequest(async (request,response) => {
+        try{
+           let intake =  {"p1":process.env.REACT_APP_P1, "p2":process.env.REACT_APP_P2, "p3":process.env.REACT_APP_P4}
+               response.status(200).send(intake);
+        }catch (err) {
+              response.status(400).send(`Error Occurred ${err as Error}`)
+        }
 })
 
 
@@ -157,6 +156,7 @@ export const listofUserAgeGrade = functions.https.onRequest(async (request, resp
 
 var PUSHYAPI = new Pushy(process.env.PUSHY_GRELOT_KEY);
 
+
 export const Notificationpush = functions.https.onRequest(async (request, response) => {
     cors(request, response, async () => {
      let e:Payload = request.body   
@@ -199,8 +199,10 @@ export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
 
             let user: Newuser = req.body
 
-            admin.auth().createUser({
+            admin.auth()
+                  .createUser({
 
+                    
                                 email: user.User.email,  
                                 emailVerified:false,
                                 phoneNumber:user.User.whatappnumber,
@@ -210,7 +212,7 @@ export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
 
                                }).then(async (useRecord) => {
 
-                                user.User.UserToken = useRecord.uid!;
+                                user.User.Usertoken = useRecord.uid!;
                               
                                 let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
                                             .doc(user.User.usertype)
@@ -221,7 +223,7 @@ export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
                                 docs.set(user);
 
                                 return  res.json({
-                                    message: user.User.UserToken ? "Account created " : "Error creating user !"            
+                                    message: user.User.Usertoken ? "Account created " : "Error creating user !"            
                             })
                          })
                             .catch(err => {
@@ -427,6 +429,37 @@ export const  webdealitGetAllPostByOrientation = functions.https.onRequest(async
           const e : RequestBody = req.body;
           const raw_data: RequestBody[] = [];
           let data = await db.collection(process.env.REACT_APP_POST_SECTION!).where("UserPost.orientations","==",e.UserPost.orientations).limit(100).get();
+          data.forEach((doc: any) => raw_data.push(doc.data()))   
+        
+          return res.json({
+            message: raw_data
+           })
+
+         }
+          catch (err) { 
+            return res.json({
+                message: err as Error
+            })
+        }
+        
+    })
+})
+
+
+
+
+
+
+
+
+export const  webdealitPostByTitle = functions.https.onRequest(async (req,res) => {
+    cors(req,res, async () => {
+      
+        try{
+          const e : RequestBody = req.body;
+          const raw_data: RequestBody[] = [];
+          let title = e.UserPost.title.split('+').join(" ");
+          let data = await db.collection(process.env.REACT_APP_POST_SECTION!).where("UserPost.title","==",title).limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
           return res.json({
@@ -1097,7 +1130,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
        let i = req.query.i!;
        let t = req.query.t!;
        let a = req.query.a!;
-       let d= req.query.d!;
+       let d = req.query.d!;
        let s = req.query.s!
        let m = req.query.m!;
        let blog = "WEBFLY BLOG";
@@ -1113,14 +1146,16 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
                                             xmlns:fb="https://www.facebook.com/2008/fbml">
                                             <head>
                                             <title>${blog} </title>
-                                            <meta property="og:url"           content="https://us-central1-grelots-ad690.cloudfunctions.net/dynamicpostRender"/>
+                                            <meta property="og:url"           content="https:webfly.click"/>
                                             <meta property="og:type"          content="website" />
+                                            <meta property="twitter:title" content=${t}/>
                                             <meta property="og:title"         content=${t} />
                                             <meta property="og:description"   content=${a} />
                                             <meta property="og:image"         content=${i} />
                                             <meta property="og:image:type"    content="image/jpeg"/>
                                             <meta property="og:image:width:   content="100%"/>
                                             <meta property="og:image:height:  content="200"/>
+                                            <link rel="icon" href="https://example.com/favicon.png">
                                             </head>
                                             <img src="${i}"/>
                                             <h3>${t}</h3>
@@ -1128,7 +1163,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
                                             <h5>${i}</h5>
                                             </html>`);
      } else
-            res.redirect(redireactUrl(d,s,a,m))  
+            res.redirect(redireactUrlWebdeal(d,s,a,m,t.toString().toLowerCase()))  
             });
 })
 
@@ -1139,12 +1174,12 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
 
 
 
-function redireactUrl(d:any, s:any, a:any, m:any){
+function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
     let url:any;
     let frame,useremail,views,doc_id_b,caller;
 
     if(s === "m")
-        url = "https://webfly.click/musicquerylink/"+d
+        url = "https://webfly.click/Musicsearch?M="+t
     else
         if(s === "p"){
             frame = a;
@@ -1152,8 +1187,7 @@ function redireactUrl(d:any, s:any, a:any, m:any){
             views=0;
             doc_id_b=d
             caller = "p"
-
-          url="https://webfly.click/explorecontent/"+frame+"/"+useremail+"/"+views+"/"+caller+"/"+doc_id_b
+            url="https://webfly.click/Explorecontent/"+frame+"/"+useremail+"/"+views+"/"+caller+"/"+doc_id_b
         }
     return url
 }
@@ -1279,6 +1313,167 @@ export const DeletePost = functions.https.onRequest(async (request,response) => 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Start of monclaris functions
+type  RegisterUsers = {
+
+    User:{
+        name:string,
+        phone:number,
+        email:string,
+        password:string,
+        doc_id:string,
+    },
+
+}
+
+
+export const Registeruser = functions.https.onRequest(async  (request,response) => {
+
+    cors(request,response, async () => {
+
+        try{
+            let e: RegisterUsers = request.body
+
+            let f = db.collection("MonclarisRegister").doc();
+            e.User.doc_id = f.id;
+            f.set(e)
+
+                response.json({
+                    message : "New User Registered"
+                })
+
+            }catch(err){
+
+                response.json({
+                    message: err as Error
+                })
+            }
+    })
+})
+//End of monclaris
+
+
+
+
+
+
+
+
+
+
+
+
+//kokocraft.ng
+export const DynamicpostRender = functions.https.onRequest(async (req,res) => {
+    cors(req,res,async () => {
+        
+       let i = req.query.i!;
+       let d= req.query.d!;
+       let c = req.query.c!;
+       let blog = "Kokocraft.ng";
+
+ 
+    const ua = req.headers['user-agent'];
+    console.log(ua, "LOG");
+
+
+    if( ua === "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"){
+            res.status(200).send(`<!doctype html xmlns="http://www.w3.org/1999/xhtml"
+                                            xmlns:og="http://ogp.me/ns#"
+                                            xmlns:fb="https://www.facebook.com/2008/fbml">
+                                            <head>
+                                            <title>${blog} </title>
+                                            <meta property="og:url"           content="https://us-central1-webpack-4414a.cloudfunctions.net/dynamicpostRender"/>
+                                            <meta property="og:type"          content="website" />
+                                            <meta property="og:title"         content=${blog} />
+                                            <meta property="og:description"   content="Kokocraft.ng  home of exquisite Apparels" />
+                                            <meta property="og:image"         content=${i} />
+                                            <meta property="og:image:type"    content="image/jpeg"/>
+                                            <meta property="og:image:width:   content="100%"/>
+                                            <meta property="og:image:height:  content="200"/>
+                                            </head>
+                                            <img src="${i}"/>
+                                            <h5>${i}</h5>
+                                            </html>`);
+     } else
+            res.redirect(redireactUrl(d,c))  
+            });
+})
+
+
+
+
+ 
+
+
+
+function redireactUrl(d:any, c:any){
+    let url:any;
+        if(c === "P")
+          url="https://webflystore.web.app/model/"+d+"/"+c
+        
+    return url
+}
+
+
+type PayloadGrelot ={
+    User:{
+        to:string
+    }
+
+    payload:{
+        id: string,
+        email:string,
+        item:string,
+        doc_id:string,
+        pic:string,
+    },
+     options: {
+        notification: {
+            badge: number,
+            sound: string,
+            id: string,
+            email:string,
+            item:string,
+            pic:string,
+            body:string,
+        },
+    };
+}
+
+
+
+
+
+var PUSHY_KOKO = new Pushy(process.env.PUSHY_GRELOT_KEYKOKO)
+export const NotificationpushGrelot = functions.https.onRequest(async (request, response) => {
+    cors(request, response, async () => {
+     let e:PayloadGrelot = request.body   
+     PUSHY_KOKO.sendPushNotification(e.payload, e.User.to, e.options,function (err: any, id:any){
+     if(err){
+        return response.json({
+            message: "Error Occurred "+err
+        })
+     }
+     return response.json({
+        message: "Sent  Succesfully  to "+id
+        })
+      })
+    })
+})
 
 
 

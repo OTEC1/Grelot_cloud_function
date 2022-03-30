@@ -2,12 +2,6 @@ import * as admin from 'firebase-admin'
 import * as functions from 'firebase-functions'
 
 
-
-
-
-
-
-
 admin.initializeApp({
     credential: admin.credential.cert({
         privateKey: functions.config().private.key.replace(/\\n/g, '\n'),
@@ -17,9 +11,6 @@ admin.initializeApp({
      databaseURL: "https://grelot-c7a70.firebaseio.com"
 
 })
-
-
-
 
 
 const db = admin.firestore();
