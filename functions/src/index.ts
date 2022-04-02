@@ -458,7 +458,8 @@ export const  webdealitPostByTitle = functions.https.onRequest(async (req,res) =
         try{
           const e : RequestBody = req.body;
           const raw_data: RequestBody[] = [];
-          let title = e.UserPost.title.split('+').join(" ");
+          let title = e.UserPost.title.split('+').join(' ');
+          console.log(title);
           let data = await db.collection(process.env.REACT_APP_POST_SECTION!).where("UserPost.title","==",title).limit(100).get();
           data.forEach((doc: any) => raw_data.push(doc.data()))   
         
@@ -909,7 +910,6 @@ export const  webdealitGetMusicByArtiseSort = functions.https.onRequest(async (r
             let e3 = req.query.query3;
             let e4 = req.query.query4;
             let list = [e1,e2,e3,e4];
-            console.log(list);
             let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.genre", "in", list).limit(100).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
 
@@ -923,7 +923,6 @@ export const  webdealitGetMusicByArtiseSort = functions.https.onRequest(async (r
                 message: err as Error
             })
         }
-   
     })
 })
 
@@ -963,7 +962,10 @@ export const  webdealitGetMusicByMusictitle = functions.https.onRequest(async (r
          try{
             const raw_data: MusicBody[] = [];
             let e : MusicBody = req.body;
-            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.music_title", "==", e.Music.music_title).limit(50).get();
+            console.log(e.Music.music_title,"BF");
+            let ms = e.Music.music_title.split('+').join(' ');
+            console.log(ms,"AF");
+            let data = await db.collection(process.env.REACT_APP_SOUND!).where("Music.music_title", "==", ms).limit(50).get();
             data.forEach((doc: any) => raw_data.push(doc.data()))  
             
             return res.json({
@@ -1178,15 +1180,16 @@ function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
     let url:any;
     let frame,useremail,views,doc_id_b;
 
-    if(s === "m")
-        url = "https://webfly.click/Musicsearch?M="+t
-    else
+    if(s === "m"){
+        let file = t.split('+').join(' ');
+        url = "https://webfly.click/Musicsearch?M="+file
+    }else
         if(s === "p"){
             frame = a;
             useremail = m;
             views=0;
             doc_id_b=d
-            url=`https://webfly.click/Explorecontent?frame="${frame}&useremail=${useremail}&views=${views}&caller=${s}&doc_id_b=${doc_id_b}`;
+            url=`https://webfly.click/Explorecontent?frame=${frame}&useremail=${useremail}&views=${views}&caller=${s}&doc_id_b=${doc_id_b}`;
         }
     return url
 }
