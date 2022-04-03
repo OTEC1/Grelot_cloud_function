@@ -1146,23 +1146,23 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
             res.status(200).send(`<!doctype html xmlns="http://www.w3.org/1999/xhtml"
                                             xmlns:og="http://ogp.me/ns#"
                                             xmlns:fb="https://www.facebook.com/2008/fbml">
-                                            <head>
-                                            <title>${blog} </title>
-                                            <meta property="og:url"           content="https:webfly.click"/>
-                                            <meta property="og:type"          content="website" />
-                                            <meta property="twitter:title" content=${t}/>
-                                            <meta property="og:title"         content=${t} />
-                                            <meta property="og:description"   content=${a} />
-                                            <meta property="og:image"         content=${i} />
-                                            <meta property="og:image:type"    content="image/jpeg"/>
-                                            <meta property="og:image:width:   content="100%"/>
-                                            <meta property="og:image:height:  content="200"/>
-                                            <link rel="icon" href="https://example.com/favicon.png">
-                                            </head>
-                                            <img src="${i}"/>
-                                            <h3>${t}</h3>
-                                            <h4>${a}</h4>
-                                            <h5>${i}</h5>
+                                                <head>
+                                                    <title>${blog} </title>
+                                                    <meta property="og:url"           content="https://webfly.click"/>
+                                                    <meta property="og:type"          content="website" />
+                                                    <meta property="twitter:title" content=${t}/>
+                                                    <meta property="og:title"         content=${t} />
+                                                    <meta property="og:description"   content=${a} />
+                                                    <meta property="og:image"         content=${i} />
+                                                    <meta property="og:image:type"    content="image/jpeg"/>
+                                                    <meta property="og:image:width:   content="100%"/>
+                                                    <meta property="og:image:height:  content="200"/>
+                                                    <link rel="icon" href="https://example.com/favicon.png">
+                                                </head>
+                                                <img src="${i}"/>
+                                                <h3>${t}</h3>
+                                                <h4>${a}</h4>
+                                                <h5>${i}</h5>
                                             </html>`);
      } else
             res.redirect(redireactUrlWebdeal(d,s,a,m,t.toString().toLowerCase()))  
@@ -1180,10 +1180,9 @@ function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
     let url:any;
     let frame,useremail,views,doc_id_b;
 
-    if(s === "m"){
-        let file = t.split('+').join(' ');
-        url = "https://webfly.click/Musicsearch?M="+file
-    }else
+    if(s === "m")
+        url = "https://webfly.click/Musicsearch?M="+t;
+    else
         if(s === "p"){
             frame = a;
             useremail = m;
