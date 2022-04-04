@@ -1018,7 +1018,7 @@ export const  webdealitGetMusicByLink = functions.https.onRequest(async (req,res
 export const Webdealit_Genre = functions.https.onRequest(async (request, respones)=> {
 
     cors(request, respones, async () => {
-        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Hip Hop', 'AfroPop', 'Jazz',"Pop", 'Gospel','Electronic','Rock','RnB','Instrumental',"Soul","Tropical","Culture", "Dj mix tape"]
+        const list = ['Select Music Genre','Hip-Hop Rap','Dancehall','Hip Hop', 'AfroPop', 'Jazz',"Pop", 'Gospel','Electronic','Rock','RnB','Instrumental',"Soul","Tropical","Culture", "Dj mix tape","Highlife"]
         return respones.json({
             message: list
         })
@@ -1132,9 +1132,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
        let i = req.query.i!;
        let t = req.query.t!;
        let a = req.query.a!;
-       let d = req.query.d!;
        let s = req.query.s!
-       let m = req.query.m!;
        let blog = "WEBFLY BLOG";
 
  
@@ -1165,7 +1163,7 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
                                                 <h5>${i}</h5>
                                             </html>`);
      } else
-            res.redirect(redireactUrlWebdeal(d,s,a,m,t.toString().toLowerCase()))  
+            res.redirect(redireactUrlWebdeal(s,t,t.toString().toLowerCase()))  
             });
 })
 
@@ -1176,20 +1174,15 @@ export const dynamicpostRender = functions.https.onRequest(async (req,res) => {
 
 
 
-function redireactUrlWebdeal(d:any, s:any, a:any, m:any, t:any){
+function redireactUrlWebdeal(s:any,m:any, t:any){
     let url:any;
-    let frame,useremail,views,doc_id_b;
 
     if(s === "m")
         url = "https://webfly.click/Musicsearch?M="+t;
     else
-        if(s === "p"){
-            frame = a;
-            useremail = m;
-            views=0;
-            doc_id_b=d
-            url=`https://webfly.click/Explorecontent?frame=${frame}&useremail=${useremail}&views=${views}&caller=${s}&doc_id_b=${doc_id_b}`;
-        }
+        if(s === "p")
+            url=`https://webfly.click/Read/${m.split(' ').join('+')}`
+        
     return url
 }
 
