@@ -8,7 +8,7 @@ admin.initializeApp({
         projectId: functions.config().project.id,
         clientEmail: functions.config().client.email
     }),
-     databaseURL: "https://grelot-c7a70.firebaseio.com"
+     databaseURL: process.env.REACT_APP_DB
 
 })
 

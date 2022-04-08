@@ -1,8 +1,7 @@
 import * as functions from "firebase-functions";
 import { admin, db } from "../config/firebase";
-import { firestore } from "firebase-admin";
+import { auth, firestore } from "firebase-admin";
 import * as bycrypt from 'bcryptjs'
-import axios from "axios";
 var Pushy = require('pushy');
 require('dotenv').config()
 
@@ -54,9 +53,8 @@ type GetDatas = {
 
 
 type  Newuser = {
-
     User:{
-        Usertoken:string,
+        usertoken:string,
         businessaddress:string,
         businessname:string,
         devicetokeen:string,
@@ -71,6 +69,14 @@ type  Newuser = {
 
 
 
+type ExistingUser = {
+    User:{
+        email:string,
+        passwordhash:string
+    }
+}
+
+
 export const Grelot_lock = functions.https.onRequest(async (request,response) => {
         try{
            let intake =  {"p1":process.env.REACT_APP_P1, "p2":process.env.REACT_APP_P2, "p3":process.env.REACT_APP_P4}
@@ -79,6 +85,8 @@ export const Grelot_lock = functions.https.onRequest(async (request,response) =>
               response.status(400).send(`Error Occurred ${err as Error}`)
         }
 })
+
+
 
 
 export  const records = functions.https.onRequest(async (request, response) => {
@@ -90,6 +98,7 @@ export  const records = functions.https.onRequest(async (request, response) => {
                 message: service
             })
 })
+
 
 
 
@@ -168,49 +177,135 @@ export  const  pushyapi = functions.https.onRequest(async (request, respones) =>
 
 
 export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
-        try{
-            let user: Newuser = req.body
-            admin.auth()
-                  .createUser({
+     
+          let user: Newuser = req.body
+             admin.auth()
+                    .createUser({
                             email: user.User.email,  
                             emailVerified:false,
                             phoneNumber:user.User.whatappnumber,
                             password:user.User.password,
-                            displayName: user.User.businessname,
+                            displayName: user.User.usertype,
                             disabled:false,
 
                         }).then(async (useRecord) => {
 
-                                user.User.Usertoken = useRecord.uid!;
-                              
+                                user.User.usertoken = useRecord.uid!;
                                 let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
                                             .doc(user.User.usertype)
-                                              .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc();
+                                              .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
 
                                 user.User.doc_id = docs.id;
                                 user.User.password = await bycrypt.hash(user.User.password, 12)
                                 docs.set(user);
-
-                                  res.json({
-                                    message: user.User.Usertoken ? "Account created " : "Error creating user !"            
-                            })
+                                return  res.json({
+                                    message: user.User.usertoken ? "Account created" : "Error creating user !"            
+                                  })
                          })
                             .catch(err => {
-
-                                  res.json({
+                                return   res.json({
                                     message: err as Error           
-                            })
-                            })
-                    
-          }catch(err){
-
-             res.json({
-                message: err as Error
+                    })
             })
-         }
 })
 
 
+
+
+
+
+
+
+
+export const LoginUser = functions.https.onRequest(async (req,res) =>{
+    
+    const idToken = req.body.idToken.toString();
+    const csrfToken = req.body.csrfToken.toString();
+    console.log(idToken,"   |   ",csrfToken ,  "   |  " , req.cookies.csrftoken);
+
+    // if (csrfToken !== req.cookies.csrftoken) {
+    //     res.status(401).send('UNAUTHORIZED REQUEST! 1 ');
+    //     return;
+    // }
+
+    const expiresIn = 60 * 60 * 24 * 1 * 1000;
+    admin.auth().createSessionCookie(idToken,{expiresIn})
+        .then((sessionCookie) => {
+            const options = {maxAge: expiresIn, httpOnly:true, secure:true};
+            res.cookie('session',sessionCookie,options);
+            res.end(JSON.stringify({ status: 'success' }));
+          }, (error) => {
+            res.status(401).send('UNAUTHORIZED REQUEST! 2 ');
+        })
+
+})
+
+
+
+
+export const VerifyUser = functions.https.onRequest(async (req, res) => {
+let idToken = req.body.idToken.toString();
+      admin.auth().verifyIdToken(idToken)
+                .then((decoderToken) => {
+                    const expiresIn = 60 * 60 * 24 * 1 * 1000;
+                      if(new Date().getTime()/ 1000 - decoderToken.auth_time < 5 * 60)
+                        return auth().createSessionCookie(idToken,{expiresIn})
+                    })
+                 res.status(401).send('Recent Sign in is required ');
+
+})  
+
+
+
+
+export const GetUserDetails = functions.https.onRequest(async (req,res) => {
+      let user:ExistingUser = req.body;
+       admin.auth().getUserByEmail(user.User.email)
+            .then(async (useRecord) => {
+            let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
+                        .doc(useRecord.displayName!)
+                                .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
+                                        .doc(useRecord.uid!);
+                                        let X = (await docs.get()).data();
+                                        const map  = new Map(Object.entries(X!));
+                                            const data = Object.fromEntries(map);
+                                             res.send({message:  data })
+                                        })
+                                   .catch(err => {
+                                        return   res.json({
+                                            message: err as Error           
+                            })
+            })
+})
+
+
+
+
+
+
+
+
+export const Sign_in_user_google = functions.https.onRequest(async(req,res) => {
+    let user: ExistingUser = req.body
+       admin.auth()
+              .getUserByEmail(user.User.email)
+                    .then(async (useRecord) => {
+                          let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
+                                      .doc(useRecord.displayName!)
+                                        .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
+                         
+                            return  res.json({
+                              message: (await docs.get()).data()           
+                            })
+
+                           
+                   })
+                      .catch(err => {
+                          return   res.json({
+                              message: err as Error           
+              })
+      })
+})
 
 
 
@@ -224,16 +319,23 @@ export const Paid_cart_uploaded = functions.https.onRequest(async(req,res) => {
 
  
 export const  UserlocationPhoneNumber = functions.https.onRequest(async(req,response) => {         
-    let card:any;   
-     card = {
-        method: 'GET',
-        url: process.env.IPDATA_END!+process.env.IPDATA!,
-      };
+    // let card:any;   
+    //  card = {
+    //     method: 'GET',
+    //     url: process.env.IPDATA_END!+process.env.IPDATA!,
+    //   };
+    //   let data = await axios.request(card);    
+    //   const res = await data.data;
 
-      let data = await axios.request(card);    
-      const res = await data.data;
         response.json({
-            message:res
+            message: process.env.IPDATA!
      })
 })
+
+
+
+
+
+
+
 
