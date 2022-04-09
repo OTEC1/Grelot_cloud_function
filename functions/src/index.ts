@@ -14,8 +14,8 @@ const cors = cors1(({ origin: true }));
 
 const Webflystore = express();
 Webflystore.use(cors);
-Webflystore.post("DynamicpostRender", DynamicpostRender);
-Webflystore.post("Notificationwebflystore", Notificationwebflystore);
+Webflystore.post("/DynamicpostRender", DynamicpostRender);
+Webflystore.post("/Notificationwebflystore", Notificationwebflystore);
 exports.Webflystore = functions.https.onRequest(Webflystore);
 
 
@@ -54,9 +54,6 @@ WebflyClick.get("/webdealitHomePageTopList",webdealitHomePageTopList);
 WebflyClick.get("/webdealitRidirectUrl",webdealitRidirectUrl);
 WebflyClick.get("/dynamicpostRender",dynamicpostRender);
 exports.WebflyClick = functions.https.onRequest(WebflyClick);
-
-
-
 
 
 

@@ -148,14 +148,13 @@ export const Notificationpush = functions.https.onRequest(async (request, respon
      let e:Payload = request.body   
      PUSHYAPI.sendPushNotification(e.payload, e.User.to, e.options,function (err: any, id:any){
      if(err){
-     response.json({
-            message: "Error Occurred "+err
-        })
-     }
-     
-      response.json({
-            message: "Sent  Succesfully  to "+id
-        })
+        response.json({
+                message: "Error Occurred "+err
+            })
+        }
+        response.json({
+                message: "Sent  Succesfully  to "+id
+            })
       })
 })
 
