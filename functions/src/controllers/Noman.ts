@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import { v4 as uuid } from 'uuid';
 import * as cloudinary from 'cloudinary';
 import * as AWS from 'aws-sdk';
+import {Response,Request, request, response} from "express";
 
 
 
@@ -65,8 +66,6 @@ httpOptions: {timeout: 0}
 export const DeletePost = functions.https.onRequest(async (request,response) => {
         let e: VideoConstrants = request.body;
         console.log(e.url);
-
-
                     const   params = {
                         Bucket: process.env.REACT_APP_P4!,
                         Key:  e.thumbnail
@@ -86,3 +85,11 @@ export const DeletePost = functions.https.onRequest(async (request,response) => 
                             }
                         });
 })
+
+
+
+export const getTimeStamp =  functions.https.onRequest(async (request,res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.send(JSON.stringify({timestamp: Date.now()}));
+
+});

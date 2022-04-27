@@ -123,17 +123,15 @@ export const  webdealitGetPostbylink = functions.https.onRequest(async (req,res)
 export const  webdealitGetAllPostByViews = functions.https.onRequest(async (req,res) => {      
         try{
           const raw_data: RequestBody[] = [];
-          let data = await db.collection(process.env.REACT_APP_POST_SECTION!).orderBy("UserPost.views","desc").limit(100).get();
-          data.forEach((doc: any) => raw_data.push(doc.data()))   
-        
-           res.json({
-            message: raw_data
-           })
-
-         }
-          catch (err) { 
-          res.json({
-                message: err as Error
+            let data = await db.collection(process.env.REACT_APP_POST_SECTION!).orderBy("UserPost.views","desc").limit(100).get();
+               data.forEach((doc: any) => raw_data.push(doc.data()))   
+                res.json({
+                    message: raw_data
+                })
+            }
+            catch (err) { 
+              res.json({
+                    message: err as Error
             })
         }
 })

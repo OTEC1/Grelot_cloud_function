@@ -1,13 +1,28 @@
 import * as functions from "firebase-functions";
 import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
-import  * as express from 'express';
-import * as cors1 from 'cors';
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
-import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser} from "./controllers/Grelot";
-import { Noman_id_genrator, ImgResize, DeletePost } from "./controllers/Noman";
+import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, DynamicpostRenderPost,VendorInvest, GetVendorInvest} from "./controllers/Grelot";
+import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp} from "./controllers/Noman";
+import {AuthUserSession,RegisterNewUser} from './controllers/Cravetech'
 import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
+import  * as express from 'express';
+import * as cors1 from 'cors';
+
 const cors = cors1(({ origin: true }));
+
+
+
+
+
+
+
+const Cravetech = express();
+Cravetech.use(cors)
+//Check for device imel number on request
+Cravetech.post("/AuthUserSession", AuthUserSession);
+Cravetech.post("/RegisterNewUser", RegisterNewUser);
+exports.Cravetech = functions.https.onRequest(Cravetech);
 
 
 
@@ -62,6 +77,7 @@ Noman.use(cors);
 Noman.get("/Noman_id_genrator",Noman_id_genrator);
 Noman.post("/ImgResize",ImgResize);
 Noman.post("/DeletePost",DeletePost);
+Noman.get("/getTimeStamp",getTimeStamp);
 exports.Noman = functions.https.onRequest(Noman);
 
 
@@ -76,19 +92,22 @@ exports.Monclaris = functions.https.onRequest(Monclaris);
 
 
 
-
-
+let n = 2;
+let v:any;
+v = true;
+const domain = () => {
+  return n === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
+}
 
 const Grelot = express();
 var corsOptions = {
-    origin: 'http://localhost:3000',
+    origin: domain(),
     credentials : true
    }
-let v:any;
-v = true;
+
 Grelot.use(cors1(corsOptions));
 Grelot.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');    
+    res.setHeader('Access-Control-Allow-Origin', domain());    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', v);    
@@ -119,6 +138,9 @@ Grelot.post("/Sign_in_user_google",Sign_in_user_google);
 Grelot.post("/LoginUser", LoginUser);
 Grelot.post("/GetUserDetails", GetUserDetails);
 Grelot.post("/VerifyUser", VerifyUser);
+Grelot.post("/dynamicpostRender", DynamicpostRenderPost);
+Grelot.post("/VendorInvest",VendorInvest);
+Grelot.post("/GetVendorInvest",GetVendorInvest);
 exports.Grelot = functions.https.onRequest(Grelot);
 
 

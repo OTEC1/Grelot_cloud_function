@@ -51,6 +51,14 @@ type GetDatas = {
 
 
 
+type PaymentModel = {
+    UserInvestment:{
+        amount:number,
+        user: string,
+        status: boolean,
+        timestamp:any
+    }
+}
 
 type  Newuser = {
     User:{
@@ -122,7 +130,7 @@ export  const thumbs = functions.https.onRequest(async (request, response) => {
 
 export const listofproducts = functions.https.onRequest(async (request, response) => {
         let list = ['Ad Category','Damax', 'Canvas material', 'Cutain for shirt', 'Cutain for House', 'Bridal satin', 
-                    'Douches', 'Tick fringe material', 'Zucuba', 'Lycra', 'Vevelt', 'Crepe','Chiffon',' Stretching  Slik', 'Stretching tafeta'];
+                    'Douches', 'Tick fringe material', 'Zucuba', 'Lycra', 'Vevelt', 'Crepe','Chiffon',' Stretching  Slik', 'Stretching tafeta','Lace'];
                      
          response.json({
             message:list
@@ -308,24 +316,47 @@ export const Sign_in_user_google = functions.https.onRequest(async(req,res) => {
 
 
 
+export const  VendorInvest = functions.https.onRequest(async(req,res) => {
+           let e:PaymentModel = req.body
+           //Validate amount token on both client and server
+           const doc_id = db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).doc();
+               doc_id.set(e)
+                    .then(response => {
+                        return res.json({
+                            message: response.writeTime.toDate()
+                        })
+                    }).catch(err => {
+                        return res.json({
+                         message: err as Error
+                        })
+                    });
+            
+}) 
+
+
+
+
+export const  GetVendorInvest = functions.https.onRequest(async(req,res) => {
+     let e:PaymentModel = req.body
+      admin.auth().getUser(e.UserInvestment.user!)
+                    .then(async (r)=> {
+                        let e:PaymentModel [] = [];
+                         const data = await db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).orderBy("UserInvestment.timestamp","desc").get();
+                           data.forEach((docs:any) => e.push(docs.data()))
+                              return res.json({ message: e})      
+                             }).catch(err => {
+                               return res.json({message: err as Error}) 
+                             })
+});
+
 
 export const Paid_cart_uploaded = functions.https.onRequest(async(req,res) => {
 
   
 })
 
-
-
  
 export const  UserlocationPhoneNumber = functions.https.onRequest(async(req,response) => {         
-    // let card:any;   
-    //  card = {
-    //     method: 'GET',
-    //     url: process.env.IPDATA_END!+process.env.IPDATA!,
-    //   };
-    //   let data = await axios.request(card);    
-    //   const res = await data.data;
-
         response.json({
             message: process.env.IPDATA!
      })
@@ -333,8 +364,22 @@ export const  UserlocationPhoneNumber = functions.https.onRequest(async(req,resp
 
 
 
+export const  DynamicpostRenderPost = functions.https.onRequest(async (req,res) => {
+
+    
+})
 
 
 
 
 
+
+
+
+    // let card:any;   
+    //  card = {
+    //     method: 'GET',
+    //     url: process.env.IPDATA_END!+process.env.IPDATA!,
+    //   };
+    //   let data = await axios.request(card);    
+    //   const res = await data.data;
