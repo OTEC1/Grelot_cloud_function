@@ -57,23 +57,23 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                         return res.json({ message: response.data.results})
                                                        else if(category == "General"){
                                                                     for(let y=0; y < 50; y++){
-                                                                        //console.log(response.data.results[y].incorrect_answers[0], responseQ.data[y])
-                                                                        const Qs:any = {
-                                                                                Q:{
-                                                                                    Category: responseQ.data[y].Category,
-                                                                                    question: responseQ.data[y].Question,
-                                                                                    a1: responseQ.data[y].Answer,
-                                                                                    a2: response.data.results[y].incorrect_answers[0],
-                                                                                    a3: response.data.results[y].incorrect_answers[1],
-                                                                                    a4: response.data.results[y].incorrect_answers[2],  
+                                                                        if(responseQ.data[y].Category === "General"){
+                                                                            const Qs:any = {
+                                                                                    Q:{
+                                                                                        Category: responseQ.data[y].Category,
+                                                                                        question: responseQ.data[y].Question,
+                                                                                        a1: responseQ.data[y].Answer,
+                                                                                        a2: response.data.results[y].incorrect_answers[0],
+                                                                                        a3: response.data.results[y].incorrect_answers[1],
+                                                                                        a4: response.data.results[y].incorrect_answers[2],  
+                                                                                    }
                                                                                 }
-                                                                            }
-                                                                        list.push(Qs)
+                                                                          list.push(Qs)
+                                                                        }
                                                                     }
+                                                                    console.log(list.length)
                                                                     return res.json({ message: list})
-                                                        }
-
-
+                                                            }
                                                         }).catch(err => {
                                                          res.json({
                                                             message : err as Error
