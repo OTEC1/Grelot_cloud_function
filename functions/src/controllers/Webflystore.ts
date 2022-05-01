@@ -10,6 +10,8 @@ export const DynamicpostRender = functions.https.onRequest(async (req,res) => {
        let c = req.query.c!;
        let blog = "Kokocraft.ng";
 
+
+     
  
     const ua = req.headers['user-agent'];
     console.log(ua, "LOG");
