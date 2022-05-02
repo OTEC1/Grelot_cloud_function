@@ -24,7 +24,7 @@ type RegUser = {
 
 
 
-
+let n = 0;
 export const AuthUserSession = functions.https.onRequest(async (req,res) => {
     let data: QuestionObj = req.body;
     let category = data.category;
@@ -42,7 +42,7 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
         else if (data.category == "History")
                 id = 23;
         else if(data.category == "Science")
-                id = 18;
+                id = 17;
         else if(data.category == "Religion")
                 id = 9;
 
@@ -50,8 +50,11 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
          let list: any[] = [];
             if(data.section == 1){
                     axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
-                           }).then(responseQ => {  
-                                    axios.get(
+                           }).then(responseQ => { 
+                                    axios.get(   
+                                         id === 17 ?
+                                         `https://opentdb.com/api.php?amount=50&category=17`
+                                         :
                                          id === 24 ? 
                                             `https://opentdb.com/api.php?amount=50&category=24` 
                                          :
@@ -68,51 +71,59 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
 
                                         )
                                         .then(response => {
-                                                     if(category == "Music")
+                                                     if(category == "Music"){
+                                                            n = 0;
                                                             return res.json({ message:  Pack(response.data.results,2,list)})
-                                                    else  
-                                                        if(category == "Vehicles")
+                                                     }else  
+                                                        if(category == "Vehicles"){
+                                                                n = 0;
                                                                 return res.json({message:  Pack(response.data.results,2,list)})
-                                                    else 
-                                                        if(category == "Politics")
+                                                    }else 
+                                                        if(category == "Politics"){
+                                                                n = 0;
                                                                 return res.json({message:  Pack(response.data.results,2,list)})
-                                                    else 
-                                                          if(category == "History")
+                                                    }else 
+                                                          if(category == "History"){
+                                                                 n = 0;
                                                                   return res.json({message:  Pack(response.data.results,2,list)})
-                                                    else 
+                                                    }else 
                                                         if(category == "Science"){
                                                             for(let y=0; y < response.data.results.length; y++)
-                                                                console.log(list.length)
-                                                                return res.json({message: list})
-                                                            }
+                                                                    list.push(response.data.results[y])
+                                                               Q1(res,list);
+                                                       }                                                            
                                                         else
                                                            if(category == "General"){
+                                                                n = 0;
                                                                 for(let y=0; y < responseQ.data.length; y++)
                                                                     Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"General",list,1)
                                                                     return res.json({ message: list})
                                                           }else 
-                                                             if(category == "Sports"){   
+                                                             if(category == "Sports"){  
+                                                                 n = 0;  
                                                                  for(let y=0; y < response.data.results.length; y++)
-                                                                    Model(responseQ.data,response.data.results[y],"Sports",list,2)
-                                                                    console.log(list.length)
-                                                                    return res.json({message: list})             
-                                                        } 
-
+                                                                     Model("",response.data.results[y],"Sports",list,2)
+                                                                 for(let s= 0; s < responseQ.data.length; s++)
+                                                                      if(formatAnd(responseQ.data[s].Category) === "Sports")
+                                                                           Model(responseQ.data[s], response.data.results[getRandom(response.data.results.length)],"Sports",list,3)
+                                                             console.log(list.length)
+                                                             return res.json({message: list}) 
+                                                          } 
                                                         }).catch(err => {
                                                             res.json({
                                                                 message : err as Error
                                                            })
                                                       })
                                                 })
-                }
-                else 
+                   }
+                    else 
                         Trivia();
 
                 }
-                else  
-                    res.json({
-                    message:"Unauthorized Request ! "
-            })
+                  else  
+                        res.json({
+                        message:"Unauthorized Request ! "
+                })
 })
 
 
@@ -167,20 +178,28 @@ function format(url:string){
    return url.substring(url.indexOf(":")+1,url.length).trim();
 }
 
+function formatAnd(url:string){
+    return url.substring(0,url.indexOf("&")).trim();
+ }
+
+
+
 
 function Model(model:any,model2:any,arg1:string,list:any[],i:number) {
-      if(i === 1){
-         if(format(model.Category) === arg1)
+      if(i === 1 || i === 3){
+         if( i === 1 ? format(model.Category) : formatAnd(model.Category) === arg1)
                 QuestionModel(model,model2,list,i);
        }else 
             if(i === 2)
               QuestionModel(model,model2,list,i);    
+            
 }
 
 
 
 function QuestionModel(model: any, model2: any, list: any[],i:number) {
-    if(i === 1){
+    n++;
+    if(i === 1 || i === 3){
             const Qs:any = {
                 Q:{
                     Category: model.Category,
@@ -189,6 +208,7 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                     a2:  model2.incorrect_answers[0],
                     a3:  model2.incorrect_answers[1],
                     a4:  model2.incorrect_answers[2],  
+                    id:n
                 }
             }
             list.push(Qs);
@@ -203,6 +223,7 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                         a2:  model2.incorrect_answers[0],
                         a3:  model2.incorrect_answers[1],
                         a4:  model2.incorrect_answers[2],  
+                        id:n
                     }
                }
             list.push(Qs);
@@ -214,8 +235,69 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
 
 function Pack(results: any, arg1: number, list: any[]):any[] {
     for(let y=0; y < results.length; y++)
-    Model("",results[y],"",list,arg1)
-    console.log(list.length)
+           Model("",results[y],"",list,arg1)
     return list;
 }
+
+
+
+function Q1(resP: functions.Response<any>, list:any[]){
+            axios.get(`https://opentdb.com/api.php?amount=50&category=18`)
+               .then(res => {
+                    for(let i = 0; i <res.data.results.length; i++)
+                         list.push(res.data.results[i])
+                      Q2(resP,list)
+                 }).catch(err => {
+                    resP.json({
+                        message: err as Error
+                   })
+                 })
+}
+
+function Q2(res: functions.Response<any>,list:any[]){
+    axios.get(`https://opentdb.com/api.php?amount=50&category=19`)
+        .then(resP => {
+            for(let i = 0; i <resP.data.results.length; i++)
+                list.push(resP.data.results[i])
+            Q3(res,list)
+           }).catch(err => {
+             res.json({
+                message: err as Error
+            })
+    })
+}
+
+function Q3(res: functions.Response<any>, list:any[]) {
+    let pack: any[] = []
+    axios.get(`https://opentdb.com/api.php?amount=10&category=30`)
+               .then(resP => {
+                    for(let i = 0; i <resP.data.results.length; i++)
+                          list.push(resP.data.results[i])
+    
+                           for(let y = 0; y < list.length; y++)
+                                 {
+                                    const Qs:any = {
+                                        Q:{
+                                            Category: list[y].category,
+                                            question:  list[y].question,
+                                            a1: list[y].correct_answer,
+                                            a2: list[y].incorrect_answers[0],
+                                            a3: list[y].incorrect_answers[1],
+                                            a4: list[y].incorrect_answers[2],
+                                            id: y == 0 ? 1 : y,
+                                        }
+                                   }
+                                   pack.push(Qs);
+                                } 
+                           console.log(pack.length) 
+                          return res.json({message: pack})
+                 }).catch(err => {
+                    res.json({
+                        message: err as Error
+                  })
+              })
+       
+}
+
+
 
