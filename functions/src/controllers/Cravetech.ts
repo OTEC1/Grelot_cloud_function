@@ -28,6 +28,7 @@ let n = 0;
 export const AuthUserSession = functions.https.onRequest(async (req,res) => {
     let data: QuestionObj = req.body;
     let category = data.category;
+    let list: any[] = [];
     let id: number;
        if(data.category == "Sports")
             id = 21;
@@ -47,7 +48,6 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                 id = 9;
 
       if(await Isvalid(data)){
-         let list: any[] = [];
             if(data.section == 1){
                     axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
                            }).then(responseQ => { 
@@ -108,22 +108,31 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                                            Model(responseQ.data[s], response.data.results[getRandom(response.data.results.length)],"Sports",list,3)
                                                              console.log(list.length)
                                                              return res.json({message: list}) 
-                                                          } 
+                                                          }    
+                                                            else
+                                                                 if(category == "Religion"){
+                                                                    n = 0;
+                                                                    for(let y=0; y < responseQ.data.length; y++)
+                                                                         Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"Religion",list,3)
+                                                                    console.log(list.length)
+                                                                    res.json({message: list})
+                                                                }
                                                         }).catch(err => {
                                                             res.json({
                                                                 message : err as Error
                                                            })
                                                       })
-                                                })
-                   }
-                    else 
-                        Trivia();
+                                        
+                                         })                                 
+                                }
+                                 else 
+                                    Trivia();
 
-                }
-                  else  
-                        res.json({
-                        message:"Unauthorized Request ! "
-                })
+                            }
+                            else  {
+                                    list.push({error: "Unauthorized Request ! "});
+                                    res.json({message: list});
+                            }
 })
 
 
@@ -131,19 +140,18 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
 
 
 async function Isvalid (body: QuestionObj) {
-    return true;
-
-    // let docs = db.collection(process.env.REACT_APP_USER_TABLE!).doc(body.user_id);
-    //  if((await docs.get()).exists){
-    //     let X = (await docs.get()).data();
-    //     const map  = new Map(Object.entries(X!));
-    //         const data = Object.fromEntries(map);
-    //             if(body.user_id === data.user_id && body.IMEI === data.IMEI && body.email === data.email)
-    //                   return true
-    //                else
-    //                    return false
-    //  }else
-    //         return false
+    //return true;
+    let docs = db.collection(process.env.REACT_APP_USER_TABLE!).doc(body.user_id);
+     if((await docs.get()).exists){
+        let X = (await docs.get()).data();
+        const map  = new Map(Object.entries(X!));
+            const data = Object.fromEntries(map);
+                if(body.user_id === data.user_id && body.IMEI === data.IMEI && body.email === data.email)
+                      return true
+                   else
+                       return false
+     }else
+            return false
 
 }
 
@@ -186,48 +194,52 @@ function formatAnd(url:string){
 
 
 function Model(model:any,model2:any,arg1:string,list:any[],i:number) {
-      if(i === 1 || i === 3){
-         if( i === 1 ? format(model.Category) : formatAnd(model.Category) === arg1)
+  
+      if(i === 1){
                 QuestionModel(model,model2,list,i);
-       }else 
-            if(i === 2)
-              QuestionModel(model,model2,list,i);    
+        }else 
+           if(i === 3){
+              if(formatAnd(model.Category) === arg1)
+                 QuestionModel(model,model2,list,i);
+            }else
+                 if(i === 2)
+                    QuestionModel(model,model2,list,i);    
             
 }
 
 
 
 function QuestionModel(model: any, model2: any, list: any[],i:number) {
-    n++;
-    if(i === 1 || i === 3){
-            const Qs:any = {
-                Q:{
-                    Category: model.Category,
-                    question: model.Question,
-                    a1:  model.Answer,
-                    a2:  model2.incorrect_answers[0],
-                    a3:  model2.incorrect_answers[1],
-                    a4:  model2.incorrect_answers[2],  
-                    id:n
+          n++;
+            if(i === 1 || i === 3){
+                        const Qs:any = {
+                            Q:{
+                                Category: model.Category,
+                                question: model.Question,
+                                a1:  model.Answer,
+                                a2:  model2.incorrect_answers[0],
+                                a3:  model2.incorrect_answers[1],
+                                a4:  model2.incorrect_answers[2],  
+                                id:n
+                            }
+                        }
+                        list.push(Qs);
                 }
-            }
-            list.push(Qs);
-    }
-    else  
-        if(i === 2){
-            const Qs:any = {
-                    Q:{
-                        Category: model2.category,
-                        question: model2.question,
-                        a1:  model2.correct_answer,
-                        a2:  model2.incorrect_answers[0],
-                        a3:  model2.incorrect_answers[1],
-                        a4:  model2.incorrect_answers[2],  
-                        id:n
+                else  
+                    if(i === 2){
+                        const Qs:any = {
+                                Q:{
+                                    Category: model2.category,
+                                    question: model2.question,
+                                    a1:  model2.correct_answer,
+                                    a2:  model2.incorrect_answers[0],
+                                    a3:  model2.incorrect_answers[1],
+                                    a4:  model2.incorrect_answers[2],  
+                                    id:n
+                                }
+                        }
+                        list.push(Qs);
                     }
-               }
-            list.push(Qs);
-        }
 }
 
 
@@ -277,16 +289,16 @@ function Q3(res: functions.Response<any>, list:any[]) {
                            for(let y = 0; y < list.length; y++)
                                  {
                                     const Qs:any = {
-                                        Q:{
-                                            Category: list[y].category,
-                                            question:  list[y].question,
-                                            a1: list[y].correct_answer,
-                                            a2: list[y].incorrect_answers[0],
-                                            a3: list[y].incorrect_answers[1],
-                                            a4: list[y].incorrect_answers[2],
-                                            id: y == 0 ? 1 : y,
+                                            Q:{
+                                                Category: list[y].category,
+                                                question:  list[y].question,
+                                                a1: list[y].correct_answer,
+                                                a2: list[y].incorrect_answers[0],
+                                                a3: list[y].incorrect_answers[1],
+                                                a4: list[y].incorrect_answers[2],
+                                                id: y+1,
+                                            }
                                         }
-                                   }
                                    pack.push(Qs);
                                 } 
                            console.log(pack.length) 
