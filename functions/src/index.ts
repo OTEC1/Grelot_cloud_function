@@ -3,12 +3,11 @@ import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webfly
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
 import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, DynamicpostRenderPost,VendorInvest, GetVendorInvest} from "./controllers/Grelot";
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp} from "./controllers/Noman";
-import {AuthUserSession,RegisterNewUser} from './controllers/Cravetech'
+import {AuthUserSession,RegisterNewUser,AuthUserRequest} from './controllers/Cravetech'
 import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
 import  * as express from 'express';
 import * as cors1 from 'cors';
-
 const cors = cors1(({ origin: true }));
 
 
@@ -22,6 +21,7 @@ Cravetech.use(cors)
 //Check for device imel number on request
 Cravetech.post("/AuthUserSession", AuthUserSession);
 Cravetech.post("/RegisterNewUser", RegisterNewUser);
+Cravetech.post("/AuthUserRequest", AuthUserRequest);
 exports.Cravetech = functions.https.onRequest(Cravetech);
 
 

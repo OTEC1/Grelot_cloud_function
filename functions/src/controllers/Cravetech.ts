@@ -12,7 +12,8 @@ type QuestionObj = {
     IMEI:string,
     user_id:string,
     category:string,
-    section:number
+    section:number,
+    id:number
 }
 
 
@@ -20,6 +21,19 @@ type RegUser = {
     email:string,
     IMEI:string,
     user_id:string,
+}
+
+
+type Qs = {
+    Q:{
+        Category: string,
+        question: string,
+        a1:  string,
+        a2:  string,
+        a3:  string,
+        a4: string,  
+        id:number
+    }
 }
 
 
@@ -73,19 +87,23 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                         .then(response => {
                                                      if(category == "Music"){
                                                             n = 0;
-                                                            return res.json({ message:  Pack(response.data.results,2,list)})
+                                                            addToList(Pack(response.data.results,2,list),"Music")
+                                                            return res.json({ message:  list.length})
                                                      }else  
                                                         if(category == "Vehicles"){
-                                                                n = 0;
-                                                                return res.json({message:  Pack(response.data.results,2,list)})
+                                                            n = 0; 
+                                                            addToList(Pack(response.data.results,2,list), "Vehicles")
+                                                            return res.json({message:  list.length})
                                                     }else 
                                                         if(category == "Politics"){
-                                                                n = 0;
-                                                                return res.json({message:  Pack(response.data.results,2,list)})
+                                                            n = 0;
+                                                            addToList(Pack(response.data.results,2,list),"Politics")
+                                                            return res.json({message: list.length})
                                                     }else 
                                                           if(category == "History"){
                                                                  n = 0;
-                                                                  return res.json({message:  Pack(response.data.results,2,list)})
+                                                                 addToList(Pack(response.data.results,2,list),"History")
+                                                                return res.json({message:  list.length})
                                                     }else 
                                                         if(category == "Science"){
                                                             for(let y=0; y < response.data.results.length; y++)
@@ -97,7 +115,8 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                                 n = 0;
                                                                 for(let y=0; y < responseQ.data.length; y++)
                                                                     Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"General",list,1)
-                                                                    return res.json({ message: list})
+                                                                    addToList(list,"General")
+                                                                    return res.json({ message: list.length})
                                                           }else 
                                                              if(category == "Sports"){  
                                                                  n = 0;  
@@ -106,16 +125,16 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                                  for(let s= 0; s < responseQ.data.length; s++)
                                                                       if(formatAnd(responseQ.data[s].Category) === "Sports")
                                                                            Model(responseQ.data[s], response.data.results[getRandom(response.data.results.length)],"Sports",list,3)
-                                                             console.log(list.length)
-                                                             return res.json({message: list}) 
+                                                             addToList(list,"Sports")
+                                                             return res.json({message: list.length}) 
                                                           }    
                                                             else
                                                                  if(category == "Religion"){
                                                                     n = 0;
                                                                     for(let y=0; y < responseQ.data.length; y++)
                                                                          Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"Religion",list,3)
-                                                                    console.log(list.length)
-                                                                    res.json({message: list})
+                                                                    addToList(list,"Religion")
+                                                                    res.json({message: list.length})
                                                                 }
                                                         }).catch(err => {
                                                             res.json({
@@ -139,8 +158,29 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
 
 
 
+export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
+
+    let data: QuestionObj = req.body;
+    let raw_data:Qs [] = [];
+    let list:any = [];
+    if(await Isvalid(data)){
+        let docs = await db.collection("CreavatechQ_"+data.category).doc(data.category).collection("CreavatechQ_"+data.category).where("Q.id","==",data.id).get();
+        docs.forEach((doc: any) => raw_data.push(doc.data()));   
+            res.json({
+                message : raw_data
+            })
+    }
+    else  {
+        list.push({error: "Unauthorized Request ! "});
+        res.json({message: list});
+}
+})
+
+
+
+
 async function Isvalid (body: QuestionObj) {
-    //return true;
+    
     let docs = db.collection(process.env.REACT_APP_USER_TABLE!).doc(body.user_id);
      if((await docs.get()).exists){
         let X = (await docs.get()).data();
@@ -182,9 +222,7 @@ function Trivia() {
     throw new Error('Function not implemented.');
 }
 
-function format(url:string){
-   return url.substring(url.indexOf(":")+1,url.length).trim();
-}
+
 
 function formatAnd(url:string){
     return url.substring(0,url.indexOf("&")).trim();
@@ -204,7 +242,7 @@ function Model(model:any,model2:any,arg1:string,list:any[],i:number) {
             }else
                  if(i === 2)
                     QuestionModel(model,model2,list,i);    
-            
+                 
 }
 
 
@@ -227,20 +265,41 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                 }
                 else  
                     if(i === 2){
-                        const Qs:any = {
-                                Q:{
-                                    Category: model2.category,
-                                    question: model2.question,
-                                    a1:  model2.correct_answer,
-                                    a2:  model2.incorrect_answers[0],
-                                    a3:  model2.incorrect_answers[1],
-                                    a4:  model2.incorrect_answers[2],  
-                                    id:n
+                        console.log(model2.incorrect_answers.length)
+                        if(model2.incorrect_answers.length === 3){
+
+                                const Qs:any = {
+                                        Q:{
+                                            Category: model2.category,
+                                            question: model2.question,
+                                            a1:  model2.correct_answer,
+                                            a2:  model2.incorrect_answers[0],
+                                            a3:  model2.incorrect_answers[1],
+                                            a4:  model2.incorrect_answers[2],  
+                                            id:n
+                                        }
                                 }
-                        }
-                        list.push(Qs);
-                    }
+                                list.push(Qs);
+
+                            }
+                            else {
+                                const Qs:any = {
+                                    Q:{
+                                        Category: model2.category,
+                                        question: model2.question,
+                                        a1:  model2.correct_answer,
+                                        a2:  model2.incorrect_answers[0],
+                                        id:n
+                                    }
+                             }
+                             list.push(Qs);
+                            }
+                       
+         }
 }
+
+
+
 
 
 
@@ -288,21 +347,37 @@ function Q3(res: functions.Response<any>, list:any[]) {
     
                            for(let y = 0; y < list.length; y++)
                                  {
-                                    const Qs:any = {
+
+                                    if(list[y].incorrect_answers.length === 3){
+                                        const Qs:any = {
+                                                Q:{
+                                                    Category: list[y].category,
+                                                    question: list[y].question,
+                                                    a1:  list[y].correct_answer,
+                                                    a2:  list[y].incorrect_answers[0],
+                                                    a3:  list[y].incorrect_answers[1],
+                                                    a4:  list[y].incorrect_answers[2],  
+                                                    id:y+1
+                                                }
+                                        }
+                                        pack.push(Qs);
+        
+                                    }
+                                    else {
+                                        const Qs:any = {
                                             Q:{
                                                 Category: list[y].category,
-                                                question:  list[y].question,
-                                                a1: list[y].correct_answer,
-                                                a2: list[y].incorrect_answers[0],
-                                                a3: list[y].incorrect_answers[1],
-                                                a4: list[y].incorrect_answers[2],
-                                                id: y+1,
+                                                question: list[y].question,
+                                                a1:  list[y].correct_answer,
+                                                a2:  list[y].incorrect_answers[0],
+                                                id:y+1
                                             }
-                                        }
-                                   pack.push(Qs);
+                                     }
+                                     pack.push(Qs);
+                                    }
                                 } 
-                           console.log(pack.length) 
-                          return res.json({message: pack})
+                           addToList(pack,"Science")
+                          return res.json({message: pack.length})
                  }).catch(err => {
                     res.json({
                         message: err as Error
@@ -312,4 +387,12 @@ function Q3(res: functions.Response<any>, list:any[]) {
 }
 
 
+
+function addToList(arg0: any[], arg1: string) {
+    let table = "CreavatechQ_"+arg1;
+    for(let m = 0; m < arg0.length; m++){
+        let doc = db.collection(table).doc(arg1).collection(table).doc()
+         doc.set(arg0[m]);
+    }
+}
 
