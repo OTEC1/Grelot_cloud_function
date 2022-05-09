@@ -157,6 +157,23 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
 
 
 
+export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
+    let data:QuestionObj = req.body
+    if(await Isvalid(data)){
+        let table = "CreavatechQ_"+data.category;
+        let doc = db.collection(table).doc(data.category).collection(table).listDocuments();
+        let size = (await doc).length;
+                res.json({
+                    message :size
+                })
+        }
+        else 
+         
+            res.json({message: "Unauthorized Request ! "});
+         
+})
+
+
 
 export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
 
@@ -180,7 +197,6 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
 
 
 async function Isvalid (body: QuestionObj) {
-    
     let docs = db.collection(process.env.REACT_APP_USER_TABLE!).doc(body.user_id);
      if((await docs.get()).exists){
         let X = (await docs.get()).data();
@@ -265,7 +281,6 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                 }
                 else  
                     if(i === 2){
-                        console.log(model2.incorrect_answers.length)
                         if(model2.incorrect_answers.length === 3){
 
                                 const Qs:any = {
@@ -395,4 +410,8 @@ function addToList(arg0: any[], arg1: string) {
          doc.set(arg0[m]);
     }
 }
+
+
+
+
 
