@@ -36,6 +36,15 @@ type Qs = {
     }
 }
 
+type fomatQs = {
+    Q:{
+        Category: string,
+        question: string,
+        answers :  any,  
+        id:number
+    }
+}
+
 
 
 let n = 0;
@@ -160,16 +169,15 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
 export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
     let data:QuestionObj = req.body
     if(await Isvalid(data)){
-        let table = "CreavatechQ_"+data.category;
-        let doc = db.collection(table).doc(data.category).collection(table).listDocuments();
-        let size = (await doc).length;
-                res.json({
-                    message :size
-                })
-        }
-        else 
-         
-            res.json({message: "Unauthorized Request ! "});
+            let table = "CreavatechQ_"+data.category;
+            let doc = db.collection(table).doc(data.category).collection(table).listDocuments();
+            let size = (await doc).length;
+                    res.json({
+                        message :size
+                    })
+            }
+          else 
+             res.json({message: "Unauthorized Request ! "});
          
 })
 
@@ -184,13 +192,13 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
         let docs = await db.collection("CreavatechQ_"+data.category).doc(data.category).collection("CreavatechQ_"+data.category).where("Q.id","==",data.id).get();
         docs.forEach((doc: any) => raw_data.push(doc.data()));   
             res.json({
-                message : raw_data
+                message:raw_data
             })
     }
     else  {
         list.push({error: "Unauthorized Request ! "});
         res.json({message: list});
-}
+    }
 })
 
 
@@ -249,9 +257,9 @@ function formatAnd(url:string){
 
 function Model(model:any,model2:any,arg1:string,list:any[],i:number) {
   
-      if(i === 1){
-                QuestionModel(model,model2,list,i);
-        }else 
+      if(i === 1)
+            QuestionModel(model,model2,list,i);
+        else 
            if(i === 3){
               if(formatAnd(model.Category) === arg1)
                  QuestionModel(model,model2,list,i);
@@ -270,10 +278,7 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                             Q:{
                                 Category: model.Category,
                                 question: model.Question,
-                                a1:  model.Answer,
-                                a2:  model2.incorrect_answers[0],
-                                a3:  model2.incorrect_answers[1],
-                                a4:  model2.incorrect_answers[2],  
+                                answers: Group(model.Answer+"r",model2.incorrect_answers[0],model2.incorrect_answers[1],model2.incorrect_answers[2],1), 
                                 id:n
                             }
                         }
@@ -286,11 +291,8 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                                 const Qs:any = {
                                         Q:{
                                             Category: model2.category,
-                                            question: model2.question,
-                                            a1:  model2.correct_answer,
-                                            a2:  model2.incorrect_answers[0],
-                                            a3:  model2.incorrect_answers[1],
-                                            a4:  model2.incorrect_answers[2],  
+                                            question: model2.question,  
+                                            answers: Group(model2.correct_answer+"r",model2.incorrect_answers[0],model2.incorrect_answers[1], model2.incorrect_answers[2],1),
                                             id:n
                                         }
                                 }
@@ -302,8 +304,7 @@ function QuestionModel(model: any, model2: any, list: any[],i:number) {
                                     Q:{
                                         Category: model2.category,
                                         question: model2.question,
-                                        a1:  model2.correct_answer,
-                                        a2:  model2.incorrect_answers[0],
+                                        answers: Group(model2.correct_answer+"r",model2.incorrect_answers[0],"","",2),
                                         id:n
                                     }
                              }
@@ -353,12 +354,27 @@ function Q2(res: functions.Response<any>,list:any[]){
     })
 }
 
+function Group (a1:any,a2:any,a3:any,a4:any,i:number){
+    let answer = [];
+    if(i === 1){
+        answer.push(a1);
+        answer.push(a2);
+        answer.push(a3);
+        answer.push(a4);
+     }else{
+        answer.push(a1);
+        answer.push(a2);
+     }
+    console.log(answer);
+    return answer;
+}
 function Q3(res: functions.Response<any>, list:any[]) {
     let pack: any[] = []
+    
     axios.get(`https://opentdb.com/api.php?amount=10&category=30`)
                .then(resP => {
                     for(let i = 0; i <resP.data.results.length; i++)
-                          list.push(resP.data.results[i])
+                          list.push(resP.data.results[i]);
     
                            for(let y = 0; y < list.length; y++)
                                  {
@@ -368,10 +384,7 @@ function Q3(res: functions.Response<any>, list:any[]) {
                                                 Q:{
                                                     Category: list[y].category,
                                                     question: list[y].question,
-                                                    a1:  list[y].correct_answer,
-                                                    a2:  list[y].incorrect_answers[0],
-                                                    a3:  list[y].incorrect_answers[1],
-                                                    a4:  list[y].incorrect_answers[2],  
+                                                    answers: Group(list[y].correct_answer+"r",list[y].incorrect_answers[0],list[y].incorrect_answers[1],list[y].incorrect_answers[2],1),
                                                     id:y+1
                                                 }
                                         }
@@ -383,8 +396,7 @@ function Q3(res: functions.Response<any>, list:any[]) {
                                             Q:{
                                                 Category: list[y].category,
                                                 question: list[y].question,
-                                                a1:  list[y].correct_answer,
-                                                a2:  list[y].incorrect_answers[0],
+                                                answers: Group(list[y].correct_answer+"r",list[y].incorrect_answers[0],"","",2),
                                                 id:y+1
                                             }
                                      }
@@ -393,10 +405,10 @@ function Q3(res: functions.Response<any>, list:any[]) {
                                 } 
                            addToList(pack,"Science")
                           return res.json({message: pack.length})
-                 }).catch(err => {
-                    res.json({
-                        message: err as Error
-                  })
+                    }).catch(err => {
+                        res.json({
+                            message: err as Error
+                    })
               })
        
 }
@@ -406,7 +418,7 @@ function Q3(res: functions.Response<any>, list:any[]) {
 function addToList(arg0: any[], arg1: string) {
     let table = "CreavatechQ_"+arg1;
     for(let m = 0; m < arg0.length; m++){
-        let doc = db.collection(table).doc(arg1).collection(table).doc()
+        let doc = db.collection(table).doc(arg1).collection(table).doc();
          doc.set(arg0[m]);
     }
 }
