@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions'
-import {db} from '../config/firebase' 
+import {db, db_sec} from '../config/firebase' 
 import axios from "axios";
 require('dotenv').config()
 
@@ -36,14 +36,7 @@ type Qs = {
     }
 }
 
-type fomatQs = {
-    Q:{
-        Category: string,
-        question: string,
-        answers :  any,  
-        id:number
-    }
-}
+
 
 
 
@@ -224,6 +217,25 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
       let user: RegUser = req.body
       let doc = db.collection(process.env.REACT_APP_USER_TABLE!).doc(user.user_id);
+      doc.set(user);
+      if(doc.id)
+         res.json({
+            message: "Account created"
+         })
+        }catch(err){
+            res.json({
+              message: err as Error
+        })
+    }
+})
+
+
+
+
+export const TestEndpoint = functions.https.onRequest(async (req,res) => {
+    try{
+      let user: QuestionObj  = req.body
+      let doc = db_sec.collection("Colections").doc();
       doc.set(user);
       if(doc.id)
          res.json({
