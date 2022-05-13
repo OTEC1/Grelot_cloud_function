@@ -7,8 +7,8 @@ const secondary = ({
         privateKey: process.env.REACT_APP_PRKEY!.replace(/\\n/g, '\n'),
         projectId: process.env.REACT_APP_PROD_ID,
         clientEmail: process.env.REACT_APP_CLIENT_EMAIL
-    }),
-    databaseURL: process.env.REACT_APP_DB_SEC
+     }),
+      databaseURL: process.env.REACT_APP_DB_SEC
 });
 
 
@@ -17,8 +17,8 @@ admin.initializeApp({
         privateKey: functions.config().private.key.replace(/\\n/g, '\n'),
         projectId: functions.config().project.id,
         clientEmail: functions.config().client.email
-    }),
-     databaseURL: process.env.REACT_APP_DB
+     }),
+      databaseURL: process.env.REACT_APP_DB
 });
 
 const sec = admin.initializeApp(secondary,'secondary');

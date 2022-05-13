@@ -1,9 +1,9 @@
 import * as functions from "firebase-functions";
-import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
 import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, DynamicpostRenderPost,VendorInvest, GetVendorInvest} from "./controllers/Grelot";
+import {AuthUserSession,RegisterNewUser,AuthUserRequest,AuthUserRequestSize,UserFund,FundUserAcct,DebitUserAcct} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp} from "./controllers/Noman";
-import {AuthUserSession,RegisterNewUser,AuthUserRequest,AuthUserRequestSize,TestEndpoint} from './controllers/Cravetech'
+import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
 import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
 import  * as express from 'express';
@@ -20,10 +20,13 @@ const Cravetech = express();
 Cravetech.use(cors)
 //Check for device imel number on request
 Cravetech.post("/AuthUserSession", AuthUserSession);
+//use admin to check for user by ID
 Cravetech.post("/RegisterNewUser", RegisterNewUser);
 Cravetech.post("/AuthUserRequest", AuthUserRequest);
 Cravetech.post("/AuthUserRequestSize", AuthUserRequestSize);
-Cravetech.post("/TestEndpoint", TestEndpoint);
+Cravetech.post("/Userfunds", UserFund);
+Cravetech.post("/FundUserAcct", FundUserAcct);
+Cravetech.post("/DebitUserAcct",DebitUserAcct);
 exports.Cravetech = functions.https.onRequest(Cravetech);
 
 

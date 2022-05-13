@@ -5,6 +5,20 @@ require('dotenv').config()
 
 
 
+// type Register = {
+//     User:{
+//         IMEI:string, 
+//         email:string, 
+//         user_id:string,
+//         UserCategory:any, 
+//     },
+//     User_details:{
+//         bank_selected:string, 
+//         NameOnAccount:string, 
+//         bal:number,
+//         bankAccount_No:string
+//      }
+// }
 
 type QuestionObj = {
     sessionID :string,
@@ -14,6 +28,18 @@ type QuestionObj = {
     category:string,
     section:number,
     id:number
+}
+
+type CheckUseerStat = {
+    User:{
+        sessionID :string,
+        email:string,
+        IMEI:string,
+        user_id:string,
+        category:string,
+        section:number,
+        id:number
+    }
 }
 
 
@@ -197,12 +223,10 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
 
 
 
-async function Isvalid (body: QuestionObj) {
-    let docs = db.collection(process.env.REACT_APP_USER_TABLE!).doc(body.user_id);
+async function Isvalid (body: any) {
+    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
      if((await docs.get()).exists){
-        let X = (await docs.get()).data();
-        const map  = new Map(Object.entries(X!));
-            const data = Object.fromEntries(map);
+             const data = CheckForNode((await docs.get()).data())
                 if(body.user_id === data.user_id && body.IMEI === data.IMEI && body.email === data.email)
                       return true
                    else
@@ -216,7 +240,7 @@ async function Isvalid (body: QuestionObj) {
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
       let user: RegUser = req.body
-      let doc = db.collection(process.env.REACT_APP_USER_TABLE!).doc(user.user_id);
+      let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.user_id);
       doc.set(user);
       if(doc.id)
          res.json({
@@ -232,21 +256,77 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
 
 
 
-export const TestEndpoint = functions.https.onRequest(async (req,res) => {
+export const UserFund = functions.https.onRequest(async (req,res) => {
     try{
-      let user: QuestionObj  = req.body
-      let doc = db_sec.collection("Colections").doc();
-      doc.set(user);
-      if(doc.id)
-         res.json({
-            message: "Account created"
-         })
-        }catch(err){
+         let user: CheckUseerStat = req.body
+           if(await Isvalid(user.User)){
+                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                   if((await docs.get()).exists){
+                        const data:any = CheckForNode((await docs.get()).data());
+                            if(data.User_details.bal > 0 && data.User_details.bal != 0)
+                                res.json({message: true})
+                            else
+                                res.json({message: false})
+                        }
+                        else 
+                            res.json({message:"Account not found"})
+                       }
+                         else
+                            res.json({message:"Unauthorized Request ! "})
+          }catch(err){
             res.json({
               message: err as Error
         })
-    }
+      }
 })
+
+
+export const FundUserAcct = functions.https.onRequest(async (req,res) => {
+    try{
+      let user: CheckUseerStat  = req.body;
+      if(await Isvalid(user.User)){
+        if(user.User.id === 1)
+            Action(user.User,1,res);
+        else
+           Group_action(user.User,1,res);
+      }else
+         res.json({message: "Unauthorized Request ! "})
+            }catch(err){
+            res.json({
+              message: err as Error
+        })
+      }
+})
+
+
+
+
+
+
+
+
+
+
+export const DebitUserAcct = functions.https.onRequest(async (req,res) => {
+    try{
+      let user: CheckUseerStat  = req.body
+       
+        if(await Isvalid(user.User)){
+            if(user.User.id === 1)
+                Action(user.User,2,res);
+            else
+               Group_action(user.User,2,res);
+          }else
+             res.json({message: "Unauthorized Request ! "})
+
+          }catch(err){
+            res.json({
+              message: err as Error
+        })
+      }
+})
+
+
 
 
 function getRandom(length: any):number {
@@ -268,7 +348,6 @@ function formatAnd(url:string){
 
 
 function Model(model:any,model2:any,arg1:string,list:any[],i:number) {
-  
       if(i === 1)
             QuestionModel(model,model2,list,i);
         else 
@@ -377,7 +456,6 @@ function Group (a1:any,a2:any,a3:any,a4:any,i:number){
         answer.push(a1);
         answer.push(a2);
      }
-    console.log(answer);
     return answer;
 }
 function Q3(res: functions.Response<any>, list:any[]) {
@@ -401,7 +479,6 @@ function Q3(res: functions.Response<any>, list:any[]) {
                                                 }
                                         }
                                         pack.push(Qs);
-        
                                     }
                                     else {
                                         const Qs:any = {
@@ -438,4 +515,60 @@ function addToList(arg0: any[], arg1: string) {
 
 
 
+
+function CheckForNode(X:any) {
+    const map  = new Map(Object.entries(X));
+    const data = Object.fromEntries(map);
+    return data;
+}
+
+
+
+
+async function Action(User: {user_id: string;}, arg1: number, res: functions.Response<any>) {
+    let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(User.user_id);
+    let Admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+    if((await doc.get()).exists){
+            const data:any = CheckForNode((await doc.get()).data());
+            const adata:any = CheckForNode((await Admindoc.get()).data());
+            let bal = data.User_details.bal;
+            let total = 0;  
+
+             if(arg1 === 1)
+                  total = adata.credit  + bal;
+               else 
+                    if( arg1 === 2 && bal > 0 && bal != 0)   
+                        total = adata.debit - bal;
+                 else
+                      res.json({message:"Insufficient funds"})
+
+                  if(bal > 0 && bal  != 0){   
+                        let userData = {
+                            User:{
+                                    IMEI:data.User.IMEI, 
+                                    email:data.User.email, 
+                                    user_id:data.User.user_id,
+                                UserCategory:data.User.UserCategory, 
+                                },  
+                            User_details:{
+                                    bank_selected:data.User_details.bank_selected, 
+                                    NameOnAccount:data.User_details.NameOnAccount, 
+                                    bal: total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()),
+                                    bankAccount_No:data.User_details.bankAccount_No
+                                }
+                            }
+                                doc.update(userData);
+                                res.json({message: "Account balance updated"})
+                    }
+            }else 
+                res.json({message: "Account not found"})
+} 
+
+
+
+
+function Group_action(User: { sessionID: string; email: string; IMEI: string; user_id: string; category: string; section: number; id: number; }, arg1: number, res: functions.Response<any>) {
+   
+    res.json({message: "OK"})
+}
 

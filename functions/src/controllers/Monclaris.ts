@@ -21,9 +21,6 @@ type  RegisterUsers = {
 export const Registeruser = functions.https.onRequest(async  (request,response) => {
         try{
             let e: RegisterUsers = request.body
-
-            
-
             let f = db.collection("MonclarisRegister").doc();
             e.User.doc_id = f.id;
             f.set(e);
