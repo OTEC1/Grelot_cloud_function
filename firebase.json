@@ -5,17 +5,17 @@
   },
   "emulators": {
     "functions": {
-      "port": 2001
+      "port": 3172
     },
     "firestore": {
-      "port": 2002
+      "port": 3173
     },
     "ui": {
       "enabled": true,
-      "port": 2003
+      "port": 3174
     },
     "auth": {
-      "port": 2004
+      "port": 3175
     }
   }
 }

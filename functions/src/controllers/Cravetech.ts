@@ -281,13 +281,48 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 })
 
 
-export const FundUserAcct = functions.https.onRequest(async (req,res) => {
+export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
       let user: CheckUseerStat  = req.body;
       if(await Isvalid(user.User)){
-        if(user.User.id === 1)
-            Action(user.User,1,res);
-        else
+        if(user.User.id === 1){
+            let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                    let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+                    if((await doc.get()).exists){
+                            const data:any = CheckForNode((await doc.get()).data());
+                            const adata:any = CheckForNode((await admindoc.get()).data());
+                            let bal = data.User_details.bal;
+                            let total = 0;  
+                            if(user.User.section === 1)
+                                  total = await Action(1,adata.credit,bal);
+                            else 
+                                if(user.User.section  === 2 && bal > 0 && bal != 0)   
+                                        total = await Action(2,adata.debit,bal);
+                                else
+                                    res.json({message:"Insufficient funds"})
+
+                                if(bal > 0 && bal  != 0){    
+                                        let userData = {
+                                            User:{
+                                                    IMEI:data.User.IMEI, 
+                                                    email:data.User.email, 
+                                                    user_id:data.User.user_id,
+                                                    UserCategory:data.User.UserCategory, 
+                                                },  
+                                            User_details:{
+                                                    bank_selected:data.User_details.bank_selected, 
+                                                    NameOnAccount:data.User_details.NameOnAccount, 
+                                                    bal: total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()),
+                                                    bankAccount_No:data.User_details.bankAccount_No
+                                                }
+                                            }
+                                                doc.update(userData);
+                                                res.json({message: "Account balance updated"})
+                                    }else
+                                        res.json({message: "Insufficient funds"})
+                            }else 
+                                res.json({message: "Account not found"})
+        }else
            Group_action(user.User,1,res);
       }else
          res.json({message: "Unauthorized Request ! "})
@@ -298,33 +333,6 @@ export const FundUserAcct = functions.https.onRequest(async (req,res) => {
       }
 })
 
-
-
-
-
-
-
-
-
-
-export const DebitUserAcct = functions.https.onRequest(async (req,res) => {
-    try{
-      let user: CheckUseerStat  = req.body
-       
-        if(await Isvalid(user.User)){
-            if(user.User.id === 1)
-                Action(user.User,2,res);
-            else
-               Group_action(user.User,2,res);
-          }else
-             res.json({message: "Unauthorized Request ! "})
-
-          }catch(err){
-            res.json({
-              message: err as Error
-        })
-      }
-})
 
 
 
@@ -525,43 +533,14 @@ function CheckForNode(X:any) {
 
 
 
-async function Action(User: {user_id: string;}, arg1: number, res: functions.Response<any>) {
-    let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(User.user_id);
-    let Admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-    if((await doc.get()).exists){
-            const data:any = CheckForNode((await doc.get()).data());
-            const adata:any = CheckForNode((await Admindoc.get()).data());
-            let bal = data.User_details.bal;
-            let total = 0;  
-
-             if(arg1 === 1)
-                  total = adata.credit  + bal;
-               else 
-                    if( arg1 === 2 && bal > 0 && bal != 0)   
-                        total = adata.debit - bal;
-                 else
-                      res.json({message:"Insufficient funds"})
-
-                  if(bal > 0 && bal  != 0){   
-                        let userData = {
-                            User:{
-                                    IMEI:data.User.IMEI, 
-                                    email:data.User.email, 
-                                    user_id:data.User.user_id,
-                                UserCategory:data.User.UserCategory, 
-                                },  
-                            User_details:{
-                                    bank_selected:data.User_details.bank_selected, 
-                                    NameOnAccount:data.User_details.NameOnAccount, 
-                                    bal: total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()),
-                                    bankAccount_No:data.User_details.bankAccount_No
-                                }
-                            }
-                                doc.update(userData);
-                                res.json({message: "Account balance updated"})
-                    }
-            }else 
-                res.json({message: "Account not found"})
+async function Action(id:any,acct:any,bal:any):Promise<number> {
+    let amount = 0;
+    if(id === 1)
+       amount = acct  + bal;
+      else
+          amount = acct - bal;
+    return amount;
+   
 } 
 
 
