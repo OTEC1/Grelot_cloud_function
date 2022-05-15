@@ -1,24 +1,44 @@
 import * as functions from 'firebase-functions'
-import {db, db_sec} from '../config/firebase' 
+import {db, db_sec, admin, sec_admin} from '../config/firebase' 
 import axios from "axios";
 require('dotenv').config()
 
 
 
-// type Register = {
-//     User:{
-//         IMEI:string, 
-//         email:string, 
-//         user_id:string,
-//         UserCategory:any, 
-//     },
-//     User_details:{
-//         bank_selected:string, 
-//         NameOnAccount:string, 
-//         bal:number,
-//         bankAccount_No:string
-//      }
-// }
+type Register = {
+    User:{
+        IMEI:string, 
+        email:string, 
+        user_id:string,
+        password:any,
+        UserCategory:any, 
+    },
+    User_details:{
+        bankSelected:string, 
+        NameOnAccount:string, 
+        bal:number,
+        gas:number,
+        bankAccountNo:string
+     }
+}
+
+
+
+type RegisterMinus = {
+    User:{
+        IMEI:string, 
+        email:string, 
+        user_id:string,
+        UserCategory:any, 
+    },
+    User_details:{
+        bankSelected:string, 
+        NameOnAccount:string, 
+        bal:number,
+        gas:number,
+        bankAccountNo:string
+     }
+}
 
 type QuestionObj = {
     sessionID :string,
@@ -61,6 +81,195 @@ type Qs = {
         id:number
     }
 }
+
+
+
+
+
+export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
+    let data:QuestionObj = req.body
+    if(await Isvalid(data)){
+            let table = "CreavatechQ_"+data.category;
+            let doc = db.collection(table).doc(data.category).collection(table).listDocuments();
+            let size = (await doc).length;
+                    res.json({
+                        message :size
+                    })
+            }
+             else 
+                res.json({message: "Unauthorized Request ! "});
+         
+})
+
+
+
+export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
+    let data: QuestionObj = req.body;
+    let raw_data:Qs [] = [];
+    let list:any = [];
+    if(await Isvalid(data)){
+        let docs = await db.collection("CreavatechQ_"+data.category).doc(data.category).collection("CreavatechQ_"+data.category).where("Q.id","==",data.id).get();
+        docs.forEach((doc: any) => raw_data.push(doc.data()));   
+            res.json({
+                message:raw_data
+            })
+    }
+    else  {
+        list.push({error: "Unauthorized Request ! "});
+        res.json({message: list});
+    }
+})
+
+
+
+
+async function Isvalid (body: any) {
+        let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
+             if((await docs.get()).exists){
+                    const data = CheckForNode((await docs.get()).data())
+                            sec_admin.getUser(body.user_id)
+                              .then(async (r) => {
+                                if(body.user_id === data.user_id && body.IMEI === data.IMEI && body.email === data.email)
+                                   return true
+                                else
+                                    return false
+                             })
+                              .catch(err => {
+                                 return false
+                             })        
+                    }else
+                           return false
+          
+}
+
+export const Vault = functions.https.onRequest(async (req,res) => {
+    let user: RegUser = req.body;
+      sec_admin.getUser(user.user_id)
+          .then((user) => {
+            res.json({message: user.email})
+          })
+            .catch(err => {
+                res.json({message: err})
+        })
+    
+})
+
+
+export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
+    try{
+        if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+            let user: Register = req.body
+                    sec_admin.createUser({
+                                    email: user.User.email,  
+                                    emailVerified:false,
+                                    password:user.User.password,
+                                    disabled:false,
+                                }).then(async (useRecord) => {
+
+                                    let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
+                                    let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
+                                    user.User.password = "";
+                                    doc.set(user);
+                                    doc_sec.set(user);
+                                        if(doc.id)
+                                          return  res.json({message: "Account created"})
+                                        else
+                                           return res.json({message: "Account wasn't created ! "})
+
+                                    }).catch((err => {
+                                        return  res.json({message: err as Error })
+                                }))
+                          }
+                           else
+                             res.json({message: "Unauthorized Request ! "})
+                       
+                }catch(err){
+                    res.json({ message: err as Error})
+         }
+})
+
+
+
+
+export const UserFund = functions.https.onRequest(async (req,res) => {
+    try{
+         let user: CheckUseerStat = req.body
+           if(await Isvalid(user.User)){
+                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                   if((await docs.get()).exists){
+                        const data:any = CheckForNode((await docs.get()).data());
+                            if(data.User_details.bal > 0 && data.User_details.bal != 0)
+                                res.json({message: true})
+                            else
+                                res.json({message: false})
+                        }
+                        else 
+                            res.json({message:"Account not found"})
+                       }
+                         else
+                            res.json({message:"Unauthorized Request ! "})
+          }catch(err){
+            res.json({
+              message: err as Error
+        })
+      }
+})
+
+
+export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
+    try{
+      let user: CheckUseerStat  = req.body;
+      if(await Isvalid(user.User)){
+        if(user.User.id === 1){
+            let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                    let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+                    if((await doc.get()).exists){
+                            const data:any = CheckForNode((await doc.get()).data());
+                            const adata:any = CheckForNode((await admindoc.get()).data());
+                            let total = 0;  
+                            if(user.User.section === 1)
+                                  total = await Action(1,adata.credit,data.User_details.bal);
+                            else 
+                                if(user.User.section  === 2 && data.User_details.bal > 0 && data.User_details.bal != 0)   
+                                        total = await Action(2,adata.debit,data.User_details.gas);
+                                else
+                                    res.json({message:"Insufficient funds"})
+
+                                if(data.User_details.bal > 0 && data.User_details.bal  != 0){    
+                                        let userData = {
+                                            User:{
+                                                    IMEI:data.User.IMEI, 
+                                                    email:data.User.email, 
+                                                    user_id:data.User.user_id,
+                                                    UserCategory:data.User.UserCategory, 
+                                                },  
+                                            User_details:{
+                                                    bank_selected:data.User_details.bank_selected, 
+                                                    NameOnAccount:data.User_details.NameOnAccount, 
+                                                    bal: user.User.section === 1 ?  total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()) : data.User_details.bal,
+                                                    gas: user.User.section === 2 ?  total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()) : data.User_details.gas,
+                                                    bankAccount_No:data.User_details.bankAccount_No
+                                                }
+                                            }
+                                                doc.update(userData);
+                                                res.json({message: "Account balance updated"})
+                                    }else
+                                        res.json({message: "Insufficient funds"})
+                            }else 
+                                res.json({message: "Account not found"})
+        }else
+           Group_action(user.User,1,res);
+      }else
+         res.json({message: "Unauthorized Request ! "})
+            }catch(err){
+            res.json({
+              message: err as Error
+        })
+      }
+})
+
+
+
 
 
 
@@ -180,157 +389,6 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                     list.push({error: "Unauthorized Request ! "});
                                     res.json({message: list});
                             }
-})
-
-
-
-
-export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
-    let data:QuestionObj = req.body
-    if(await Isvalid(data)){
-            let table = "CreavatechQ_"+data.category;
-            let doc = db.collection(table).doc(data.category).collection(table).listDocuments();
-            let size = (await doc).length;
-                    res.json({
-                        message :size
-                    })
-            }
-          else 
-             res.json({message: "Unauthorized Request ! "});
-         
-})
-
-
-
-export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
-
-    let data: QuestionObj = req.body;
-    let raw_data:Qs [] = [];
-    let list:any = [];
-    if(await Isvalid(data)){
-        let docs = await db.collection("CreavatechQ_"+data.category).doc(data.category).collection("CreavatechQ_"+data.category).where("Q.id","==",data.id).get();
-        docs.forEach((doc: any) => raw_data.push(doc.data()));   
-            res.json({
-                message:raw_data
-            })
-    }
-    else  {
-        list.push({error: "Unauthorized Request ! "});
-        res.json({message: list});
-    }
-})
-
-
-
-
-async function Isvalid (body: any) {
-    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
-     if((await docs.get()).exists){
-             const data = CheckForNode((await docs.get()).data())
-                if(body.user_id === data.user_id && body.IMEI === data.IMEI && body.email === data.email)
-                      return true
-                   else
-                       return false
-     }else
-            return false
-
-}
-
-
-export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
-    try{
-      let user: RegUser = req.body
-      let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.user_id);
-      doc.set(user);
-      if(doc.id)
-         res.json({
-            message: "Account created"
-         })
-        }catch(err){
-            res.json({
-              message: err as Error
-        })
-    }
-})
-
-
-
-
-export const UserFund = functions.https.onRequest(async (req,res) => {
-    try{
-         let user: CheckUseerStat = req.body
-           if(await Isvalid(user.User)){
-                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                   if((await docs.get()).exists){
-                        const data:any = CheckForNode((await docs.get()).data());
-                            if(data.User_details.bal > 0 && data.User_details.bal != 0)
-                                res.json({message: true})
-                            else
-                                res.json({message: false})
-                        }
-                        else 
-                            res.json({message:"Account not found"})
-                       }
-                         else
-                            res.json({message:"Unauthorized Request ! "})
-          }catch(err){
-            res.json({
-              message: err as Error
-        })
-      }
-})
-
-
-export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
-    try{
-      let user: CheckUseerStat  = req.body;
-      if(await Isvalid(user.User)){
-        if(user.User.id === 1){
-            let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                    let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-                    if((await doc.get()).exists){
-                            const data:any = CheckForNode((await doc.get()).data());
-                            const adata:any = CheckForNode((await admindoc.get()).data());
-                            let bal = data.User_details.bal;
-                            let total = 0;  
-                            if(user.User.section === 1)
-                                  total = await Action(1,adata.credit,bal);
-                            else 
-                                if(user.User.section  === 2 && bal > 0 && bal != 0)   
-                                        total = await Action(2,adata.debit,bal);
-                                else
-                                    res.json({message:"Insufficient funds"})
-
-                                if(bal > 0 && bal  != 0){    
-                                        let userData = {
-                                            User:{
-                                                    IMEI:data.User.IMEI, 
-                                                    email:data.User.email, 
-                                                    user_id:data.User.user_id,
-                                                    UserCategory:data.User.UserCategory, 
-                                                },  
-                                            User_details:{
-                                                    bank_selected:data.User_details.bank_selected, 
-                                                    NameOnAccount:data.User_details.NameOnAccount, 
-                                                    bal: total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()),
-                                                    bankAccount_No:data.User_details.bankAccount_No
-                                                }
-                                            }
-                                                doc.update(userData);
-                                                res.json({message: "Account balance updated"})
-                                    }else
-                                        res.json({message: "Insufficient funds"})
-                            }else 
-                                res.json({message: "Account not found"})
-        }else
-           Group_action(user.User,1,res);
-      }else
-         res.json({message: "Unauthorized Request ! "})
-            }catch(err){
-            res.json({
-              message: err as Error
-        })
-      }
 })
 
 
