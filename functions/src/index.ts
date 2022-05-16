@@ -13,19 +13,14 @@ const cors = cors1(({ origin: true }));
 
 
 
-
-
-
 const Cravetech = express();
 Cravetech.use(cors)
 //Check for device imel number on request
 Cravetech.post("/AuthUserSession", AuthUserSession);
-//use admin to check for user by ID
 Cravetech.post("/RegisterNewUser", RegisterNewUser);
 Cravetech.post("/AuthUserRequest", AuthUserRequest);
 Cravetech.post("/AuthUserRequestSize", AuthUserRequestSize);
 Cravetech.post("/Userfunds", UserFund);
-//Check user session ID and auth id on call
 Cravetech.post("/ManageUserAcct", ManageUserAcct);
 Cravetech.post("/Vault",Vault);
 exports.Cravetech = functions.https.onRequest(Cravetech);
