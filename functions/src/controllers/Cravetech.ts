@@ -138,7 +138,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
             let user: Register = req.body
-                      sec_admin.createUser({
+                      sec_admin.createUser({ 
                                     email: user.User.email,  
                                     emailVerified:false,
                                     password:user.User.password,
@@ -221,7 +221,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                                 
                                          }
                                          doc_.set(userData);
-                                           res.json({message: "Account balance updated"+user.User.section})
+                                           res.json({message: "Account balance updated"})
                               }else
                                    if(user.User.section ===  2){ //still needs more check   
                                              let userData = {
@@ -240,7 +240,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                                     }
                                             }
                                              doc_.set(userData);
-                                               res.json({message: "Account balance updated"+user.User.section})
+                                               res.json({message: "Account balance updated"})
                                     }
                             }else 
                                  res.json({message: "Account not found"})
