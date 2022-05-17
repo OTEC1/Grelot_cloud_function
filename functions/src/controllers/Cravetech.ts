@@ -74,13 +74,10 @@ type Qs = {
 
 export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
     let data:CheckUseerStat = req.body
-    if(await Isvalid(data)){
+        if(await Isvalid(data.User)){
             let table = "CreavatechQ_"+data.User.category;
             let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
-            let size = (await doc).length;
-                    res.json({
-                        message :size
-                    })
+                res.json({message: (await doc).length})
             }
              else 
                 res.json({message: "Unauthorized Request !"});
@@ -95,16 +92,13 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
     let raw_data:Qs [] = [];
     let list:any = [];
     if(await Isvalid(data.User)){
-        let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
-        docs.forEach((doc: any) => raw_data.push(doc.data()));   
-            res.json({
-                message:raw_data
-            })
-    }
-    else  {
-        list.push({error: "Unauthorized Request !"});
-        res.json({message: list});
-    }
+            let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
+                docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                    res.json({message:raw_data})
+                } else  {
+                    list.push({error: "Unauthorized Request !"});
+                    res.json({message: list});
+                }
 })
 
 
@@ -204,48 +198,58 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
       let user: CheckUseerStat  = req.body;
       if(await Isvalid(user.User)){
         if(user.User.id === 1){
-            let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                    let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-                    if((await doc.get()).exists){
-                          let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                            const data:any = CheckForNode((await doc.get()).data());
+            let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+              let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+                if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+                            const data:any = CheckForNode((await doc_.get()).data());
                             const adata:any = CheckForNode((await admindoc.get()).data());
-                            let total = 0;  
-                            if(user.User.section === 1) //stil needs more check 
-                                  total = await Action(1,adata.credit,data.User_details.bal);
-                            else
-                                if(user.User.section  === 2 ) //stil needs more check   
-                                        total = await Action(2,adata.debit,data.User_details.gas);
-                                else
-                                    res.json({message:"Insufficient funds"})
-   
-                                        let userData = {
+                               if(user.User.section ===  1){ //still needs more check
+                                    let userData = {
                                             User:{
                                                     IMEI:data.User.IMEI, 
                                                     email:data.User.email, 
                                                     user_id:data.User.user_id,
                                                     UserCategory:data.User.UserCategory, 
                                                 },  
-                                            User_details:{
-                                                    bank_selected:data.User_details.bank_selected, 
+                                             User_details:{
+                                                    bankSelected:data.User_details.bankSelected, 
                                                     NameOnAccount:data.User_details.NameOnAccount, 
-                                                    bal: user.User.section === 1 ?  total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()) : data.User_details.bal,
-                                                    gas: user.User.section === 2 ?  total.toString().includes("-") ? parseInt(total.toString().replace("-","")) : parseInt(total.toString()) : data.User_details.gas,
-                                                    bankAccount_No:data.User_details.bankAccount_No
+                                                    bal: Action(1,adata.credit,data.User_details.bal),
+                                                    gas: data.User_details.gas,
+                                                    bankAccountNo: data.User_details.bankAccountNo
                                                 }
+                                                
+                                         }
+                                         doc_.set(userData);
+                                           res.json({message: "Account balance updated"+user.User.section})
+                              }else
+                                   if(user.User.section ===  2){ //still needs more check   
+                                             let userData = {
+                                                User:{
+                                                        IMEI:data.User.IMEI, 
+                                                        email:data.User.email, 
+                                                        user_id:data.User.user_id,
+                                                        UserCategory:data.User.UserCategory, 
+                                                    },  
+                                                 User_details:{
+                                                        bankSelected:data.User_details.bankSelected, 
+                                                        NameOnAccount:data.User_details.NameOnAccount, 
+                                                        bal:data.User_details.bal,
+                                                        gas: Action(2,adata.debit,data.User_details.gas),
+                                                        bankAccountNo:data.User_details.bankAccountNo
+                                                    }
                                             }
-                                                doc_sec.update(userData);
-                                                res.json({message: "Account balance updated"})
-                                }else 
-                                    res.json({message: "Account not found"})
+                                             doc_.set(userData);
+                                               res.json({message: "Account balance updated"+user.User.section})
+                                    }
+                            }else 
+                                 res.json({message: "Account not found"})
               }else
                  Group_action(user.User,1,res);
         }else
            res.json({message: "Unauthorized Request !"})
                 }catch(err){
-                res.json({
-                message: err as Error
-            })
+                res.json({message: err as Error})
       }
 })
 
@@ -572,14 +576,15 @@ function CheckForNode(X:any) {
 
 
 
-async function Action(id:any,acct:any,bal:any):Promise<number> {
-    let amount = 0;
-    if(id === 1)
-       amount = acct  + bal;
-      else
-          amount = acct - bal;
-    return amount;
-   
+function Action(id:any,acct:number,bal:number):Number{
+    let e = 0;
+     if(id === 1)
+         e = acct  + bal;
+     else{
+           e = acct - bal; 
+           return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
+      }  
+      return parseInt(e.toString());
 } 
 
 
