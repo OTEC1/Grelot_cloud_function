@@ -198,9 +198,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
       let user: CheckUseerStat  = req.body;
       let raw_data:any [] = []
-      console.log("Ok");
-      
-        // if(await Isvalid(user.User)){
+        if(await Isvalid(user.User)){
            if(user.User.id === 1){
                 if(user.User.category.trim().length > 0){
                     let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
@@ -227,8 +225,8 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
               
               }else
                  Group_action(user.User,1,res);
-        // }else
-        //    res.json({message: "Unauthorized Request !"})
+          }else
+             res.json({message: "Unauthorized Request !"})
 
                 }catch(err){
                   res.json({message: err as Error})
