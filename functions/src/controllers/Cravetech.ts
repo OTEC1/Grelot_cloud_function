@@ -24,20 +24,27 @@ type Register = {
 }
 
 
-
-
-
-type QuestionObj = {
-    sessionID :string,
-    email:string,
-    IMEI:string,
-    user_id:string,
-    category:string,
-    section:number,
-    id:number
+type GroupCreation = {
+    User:{
+        members_ids:any,
+        email:string,
+        IMEI:string,
+        user_id:string,
+        groupName:string,
+        amount:number,
+        Liquidator_size:number,
+        miner_stake:number;
+        timestamp:any,
+        doc_id:any,
+        profit:number,
+        loss:number,
+        liquidity:number,
+        active:boolean
+    }
 }
 
-type CheckUseerStat = {
+
+type CheckUserStat = {
     User:{
         list: [],
         email:string,
@@ -50,12 +57,15 @@ type CheckUseerStat = {
 }
 
 
-type RegUser = {
+type QuestionObj = {
+    sessionID :string,
     email:string,
     IMEI:string,
     user_id:string,
+    category:string,
+    section:number,
+    id:number
 }
-
 
 type Qs = {
     Q:{
@@ -74,7 +84,7 @@ type Qs = {
 
 
 export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
-    let data:CheckUseerStat = req.body
+    let data:CheckUserStat = req.body
         if(await Isvalid(data.User)){
             let table = "CreavatechQ_"+data.User.category;
             let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
@@ -89,7 +99,7 @@ export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => 
 
 //Check user bal and gas 
 export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
-    let data: CheckUseerStat = req.body;
+    let data: CheckUserStat = req.body;
     let raw_data:Qs [] = [];
     let list:any = [];
     if(await Isvalid(data.User)){
@@ -123,22 +133,44 @@ async function Isvalid (body: any) {
 
 
 export const Vault = functions.https.onRequest(async (req,res) => {
-    let user: RegUser = req.body;
-      sec_admin.getUser(user.user_id)
-          .then((user) => {
-            res.json({message: user.email})
-          })
-            .catch(err => {
-                res.json({message: err})
-        })
+    let members: any[] = [];
+    let user: GroupCreation = req.body;
+    if(await Isvalid(user.User)){
+        sec_admin.getUser(user.User.user_id)
+            .then(async (use) => {
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
+                       const data:any = CheckForNode((await docs.get()).data());
+                             if(data.User_details.gas > user.User.amount){
+                                  let m =  docs.collection(user.User.user_id+"_Stakes").doc()
+                                  user.User.doc_id = m.id;
+                                    members.push(user.User.user_id);
+                                      user.User.timestamp = Date.now();
+                                       user.User.members_ids = members;
+                                         m.set(user);
+                                     docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
+                                    if(m.id)
+                                        res.json({message: `Group ${user.User.groupName} created `})
+                                    else
+                                        res.json({message: `Group ${user.User.groupName} creation failed !`})
+
+                                  }else
+                                     res.json({message: "Insufficient funds pls purchase gas !"})
+                 })
+                   .catch(err => {
+                     res.json({message: err})
+            })
+    }
+    else 
+       res.json({message: "Unauthorized Request !"});
+
     
 })
 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
-        // if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-            let user: Register = req.body
+         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                 let user: Register = req.body
                       admin.auth().createUser({ 
                                     email: user.User.email,  
                                     emailVerified:false,
@@ -159,9 +191,9 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     }).catch((err => {
                                         return  res.json({message: err as Error })
                                 }))
-                        //  }
-                        //    else
-                        //        res.json({message: "Unauthorized Request !"})
+                         }
+                           else
+                               res.json({message: "Unauthorized Request !"})
                 }catch(err){
                     res.json({ message: err as Error})
          }
@@ -172,21 +204,26 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
 
 export const UserFund = functions.https.onRequest(async (req,res) => {
     try{
-         let user:CheckUseerStat = req.body
-           if(await Isvalid(user.User)){
-                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                   if((await docs.get()).exists){
-                        const data:any = CheckForNode((await docs.get()).data());
-                            if(data.User_details.gas > 100)
-                                res.json({message: true})
-                            else
-                                res.json({message: false})
+         let user:CheckUserStat = req.body
+         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                if(await Isvalid(user.User)){
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                    if((await docs.get()).exists){
+                            const data:any = CheckForNode((await docs.get()).data());
+                                if(data.User_details.gas > 100)
+                                    res.json({message: true})
+                                else
+                                    res.json({message: false})
+                            }
+                            else 
+                                res.json({message:"Account not found"})
                         }
-                        else 
-                            res.json({message:"Account not found"})
-                       }
-                         else
-                            res.json({message:"Unauthorized Request !"})
+                            else
+                                res.json({message:"Unauthorized Request !"});
+                 }
+                  else
+                     res.json({message:"Unauthorized Request !"})
+
           }catch(err){
             res.json({message: err as Error})
       }
@@ -196,37 +233,41 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 //Check user session ID and auth id on call
 export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
-      let user: CheckUseerStat  = req.body;
+      let user: CheckUserStat  = req.body;
       let raw_data:any [] = []
-        if(await Isvalid(user.User)){
-           if(user.User.id === 1){
-                if(user.User.category.trim().length > 0){
-                    let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
-                    docs.forEach((doc: any) => raw_data.push(doc.data()));  
+      if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                if(await Isvalid(user.User)){
+                    if(user.User.id === 1){
+                        if(user.User.category.trim().length > 0){
+                            let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
+                            docs.forEach((doc: any) => raw_data.push(doc.data()));  
 
-                    let answer_lists = [];
-                    for(let e =0; e < user.User.list.length; e++){
-                            let a:any = user.User.list[e];
-                                  for(let m=0; m < raw_data.length; m++){
-                                     if(a.question_id.toString() === raw_data[m].Q.id.toString()){
-                                         if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
-                                             answer_lists.push(1);        
+                            let answer_lists = [];
+                            for(let e =0; e < user.User.list.length; e++){
+                                    let a:any = user.User.list[e];
+                                        for(let m=0; m < raw_data.length; m++){
+                                            if(a.question_id.toString() === raw_data[m].Q.id.toString()){
+                                                if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
+                                                    answer_lists.push(1);        
+                                        }
+                                    }                       
                                 }
-                            }                       
-                        }
-                         if(answer_lists.length === 5)                  
-                               UpdateUserAccount(res,user,1); 
-                          else
-                               UpdateUserAccount(res,user,2);
+                                if(answer_lists.length === 5)                  
+                                    UpdateUserAccount(res,user,1); 
+                                else
+                                    UpdateUserAccount(res,user,2);
 
-                }
-                 else
-                       UpdateUserAccount(res,user,2); 
-              
-              }else
-                 Group_action(user.User,1,res);
-          }else
-             res.json({message: "Unauthorized Request !"})
+                        }
+                        else
+                            UpdateUserAccount(res,user,2); 
+                        
+                        }else
+                           Group_action(user.User,1,res);
+                    }else
+                       res.json({message: "Unauthorized Request !"})
+            }
+             else
+               res.json({message:"Unauthorized Request !"})
 
                 }catch(err){
                   res.json({message: err as Error})
@@ -300,7 +341,7 @@ async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number
                                           }
                                   }
                                    doc_.set(userData);
-                                   return  res.json({message: "Sorry you didn't get all the 5 answers right !"})
+                                   return  res.json({message: "Sorry you didn't get all 5 answers right !"})
                           }
                   }else 
                     return   res.json({message: "Account not found"})
@@ -320,25 +361,24 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
     let category = data.category;
     let list: any[] = [];
     let id: number;
-       if(data.category == "Sports")
-            id = 21;
-        else if(data.category == "Music")
-            id = 12;
-        else if(data.category == "General")
-                id = 9;
-        else if(data.category == "Vehicles")
-                id = 28;
-        else if(data.category == "Politics")
-                id = 24;
-        else if (data.category == "History")
-                id = 23;
-        else if(data.category == "Science")
-                id = 17;
-        else if(data.category == "Religion")
-                id = 9;
-
-    //   if(await Isvalid(data)){
-            if(data.section == 1){
+        if(data.category == "Sports")
+                id = 21;
+            else if(data.category == "Music")
+                id = 12;
+            else if(data.category == "General")
+                    id = 9;
+            else if(data.category == "Vehicles")
+                    id = 28;
+            else if(data.category == "Politics")
+                    id = 24;
+            else if (data.category == "History")
+                    id = 23;
+            else if(data.category == "Science")
+                    id = 17;
+            else if(data.category == "Religion")
+                    id = 9;
+           if(await Isvalid(data)){
+               if(data.section == 1){
                     axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
                            }).then(responseQ => { 
                                     axios.get(   
@@ -422,25 +462,24 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                 }
                 else 
                    DB_STORE();
-
-          //}
-        // else  {
-        //         list.push({error: "Unauthorized Request ! "});
-        //         res.json({message: list});
-        // }
+          }
+        else  {
+                list.push({error: "Unauthorized Request ! "});
+                res.json({message: list});
+        }
 })
 
 
 
 
-
-function getRandom(length: any):number {
-   return Math.floor(Math.random() * length)
+function DB_STORE() {
+    throw new Error('Function not implemented.');
 }
 
 
-function DB_STORE() {
-    throw new Error('Function not implemented.');
+
+function getRandom(length: any):number {
+   return Math.floor(Math.random() * length)
 }
 
 

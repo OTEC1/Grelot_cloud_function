@@ -7,11 +7,9 @@ import {Response,Request, request, response} from "express";
 
 
 export const Noman_id_genrator = functions.https.onRequest(async (request, respones)=> {
-    
     respones.json({
         message: uuid()
     })
-
 })
 
 
