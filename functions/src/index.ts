@@ -21,7 +21,7 @@ Cravetech.post("/RegisterNewUser", RegisterNewUser);
 Cravetech.post("/AuthUserRequest", AuthUserRequest);
 Cravetech.post("/AuthUserRequestSize", AuthUserRequestSize);
 Cravetech.post("/Userfunds", UserFund);
-Cravetech.post("/Manageuseracct", ManageUserAcct);
+Cravetech.post("/Validate", ManageUserAcct);
 Cravetech.post("/Vault",Vault);
 exports.Cravetech = functions.https.onRequest(Cravetech);
 

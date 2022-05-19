@@ -11,6 +11,7 @@ type Register = {
         email:string, 
         user_id:string,
         password:any,
+        avatar:number,
         UserCategory:any, 
     },
     User_details:{
@@ -38,7 +39,7 @@ type QuestionObj = {
 
 type CheckUseerStat = {
     User:{
-        sessionID :string,
+        list: [],
         email:string,
         IMEI:string,
         user_id:string,
@@ -136,9 +137,9 @@ export const Vault = functions.https.onRequest(async (req,res) => {
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
-        if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+        // if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
             let user: Register = req.body
-                      sec_admin.createUser({ 
+                      admin.auth().createUser({ 
                                     email: user.User.email,  
                                     emailVerified:false,
                                     password:user.User.password,
@@ -150,7 +151,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
                                     doc.set(user);
                                     doc_sec.set(user);
-                                        if(doc_sec.id && doc.id)
+                                        if(doc.id && doc_sec.id)
                                           return  res.json({message: "Account created"})
                                         else
                                            return res.json({message: "Account wasn't created ! "})
@@ -158,9 +159,9 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     }).catch((err => {
                                         return  res.json({message: err as Error })
                                 }))
-                         }
-                           else
-                               res.json({message: "Unauthorized Request !"})
+                        //  }
+                        //    else
+                        //        res.json({message: "Unauthorized Request !"})
                 }catch(err){
                     res.json({ message: err as Error})
          }
@@ -196,62 +197,117 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
       let user: CheckUseerStat  = req.body;
-      if(await Isvalid(user.User)){
-        if(user.User.id === 1){
-            let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-              let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-                if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
-                            const data:any = CheckForNode((await doc_.get()).data());
-                            const adata:any = CheckForNode((await admindoc.get()).data());
-                               if(user.User.section ===  1){ //still needs more check
-                                    let userData = {
-                                            User:{
-                                                    IMEI:data.User.IMEI, 
-                                                    email:data.User.email, 
-                                                    user_id:data.User.user_id,
-                                                    UserCategory:data.User.UserCategory, 
-                                                },  
-                                             User_details:{
-                                                    bankSelected:data.User_details.bankSelected, 
-                                                    NameOnAccount:data.User_details.NameOnAccount, 
-                                                    bal: Action(1,adata.credit,data.User_details.bal),
-                                                    gas: data.User_details.gas,
-                                                    bankAccountNo: data.User_details.bankAccountNo
-                                                }
-                                                
-                                         }
-                                         doc_.set(userData);
-                                           res.json({message: "Account balance updated"})
-                              }else
-                                   if(user.User.section ===  2){ //still needs more check   
-                                             let userData = {
-                                                User:{
-                                                        IMEI:data.User.IMEI, 
-                                                        email:data.User.email, 
-                                                        user_id:data.User.user_id,
-                                                        UserCategory:data.User.UserCategory, 
-                                                    },  
-                                                 User_details:{
-                                                        bankSelected:data.User_details.bankSelected, 
-                                                        NameOnAccount:data.User_details.NameOnAccount, 
-                                                        bal:data.User_details.bal,
-                                                        gas: Action(2,adata.debit,data.User_details.gas),
-                                                        bankAccountNo:data.User_details.bankAccountNo
-                                                    }
-                                            }
-                                             doc_.set(userData);
-                                               res.json({message: "Account balance updated"})
-                                    }
-                            }else 
-                                 res.json({message: "Account not found"})
+      let raw_data:any [] = []
+      console.log("Ok");
+      
+        // if(await Isvalid(user.User)){
+           if(user.User.id === 1){
+                if(user.User.category.trim().length > 0){
+                    let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
+                    docs.forEach((doc: any) => raw_data.push(doc.data()));  
+
+                    let answer_lists = [];
+                    for(let e =0; e < user.User.list.length; e++){
+                            let a:any = user.User.list[e];
+                                  for(let m=0; m < raw_data.length; m++){
+                                     if(a.question_id.toString() === raw_data[m].Q.id.toString()){
+                                         if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
+                                             answer_lists.push(1);        
+                                }
+                            }                       
+                        }
+                         if(answer_lists.length === 5)                  
+                               UpdateUserAccount(res,user,1); 
+                          else
+                               UpdateUserAccount(res,user,2);
+
+                }
+                 else
+                       UpdateUserAccount(res,user,2); 
+              
               }else
                  Group_action(user.User,1,res);
-        }else
-           res.json({message: "Unauthorized Request !"})
+        // }else
+        //    res.json({message: "Unauthorized Request !"})
+
                 }catch(err){
-                res.json({message: err as Error})
-      }
+                  res.json({message: err as Error})
+                }
 })
+
+
+
+
+
+function Group_action(User:any, arg1: number, res: functions.Response<any>) {
+    res.json({message: "Group"})
+}
+
+
+
+
+function Action(id:any,acct:any,bal:number):Number{
+    let e = 0;
+     if(id === 1)
+         e = acct  + bal;
+     else{
+           e = acct - bal; 
+           return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
+      }  
+      return parseInt(e.toString());
+} 
+
+
+
+
+async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number) {
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+       let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+                  const data:any = CheckForNode((await doc_.get()).data());
+                      const adata:any = CheckForNode((await admindoc.get()).data());
+                     if(i ===  1){ //still needs more check
+                          let userData = {
+                                  User:{
+                                          IMEI:data.User.IMEI, 
+                                          email:data.User.email, 
+                                          user_id:data.User.user_id,
+                                          UserCategory:data.User.UserCategory, 
+                                      },  
+                                   User_details:{
+                                          bankSelected:data.User_details.bankSelected, 
+                                          NameOnAccount:data.User_details.NameOnAccount, 
+                                          bal: Action(1,adata.credit,data.User_details.bal),
+                                          gas: data.User_details.gas,
+                                          bankAccountNo: data.User_details.bankAccountNo
+                                      }   
+                               }
+                               doc_.set(userData);
+                               return res.json({message: "You won this stage"})
+                    }else
+                         if(i ===  2){ //still needs more check   
+                                   let userData = {
+                                      User:{
+                                              IMEI:data.User.IMEI, 
+                                              email:data.User.email, 
+                                              user_id:data.User.user_id,
+                                              UserCategory:data.User.UserCategory, 
+                                          },  
+                                       User_details:{
+                                              bankSelected:data.User_details.bankSelected, 
+                                              NameOnAccount:data.User_details.NameOnAccount, 
+                                              bal:data.User_details.bal,
+                                              gas: Action(2,adata.debit,data.User_details.gas),
+                                              bankAccountNo:data.User_details.bankAccountNo
+                                          }
+                                  }
+                                   doc_.set(userData);
+                                   return  res.json({message: "Sorry you didn't get all the 5 answers right !"})
+                          }
+                  }else 
+                    return   res.json({message: "Account not found"})
+}
+
 
 
 
@@ -283,7 +339,7 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
         else if(data.category == "Religion")
                 id = 9;
 
-      if(await Isvalid(data)){
+    //   if(await Isvalid(data)){
             if(data.section == 1){
                     axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
                            }).then(responseQ => { 
@@ -366,14 +422,14 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                         
                                          })                                 
                                 }
-                                 else 
-                                    Trivia();
+                else 
+                   DB_STORE();
 
-                            }
-                            else  {
-                                    list.push({error: "Unauthorized Request ! "});
-                                    res.json({message: list});
-                            }
+          //}
+        // else  {
+        //         list.push({error: "Unauthorized Request ! "});
+        //         res.json({message: list});
+        // }
 })
 
 
@@ -385,7 +441,7 @@ function getRandom(length: any):number {
 }
 
 
-function Trivia() {
+function DB_STORE() {
     throw new Error('Function not implemented.');
 }
 
@@ -574,24 +630,4 @@ function CheckForNode(X:any) {
 }
 
 
-
-
-function Action(id:any,acct:number,bal:number):Number{
-    let e = 0;
-     if(id === 1)
-         e = acct  + bal;
-     else{
-           e = acct - bal; 
-           return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
-      }  
-      return parseInt(e.toString());
-} 
-
-
-
-
-function Group_action(User: { sessionID: string; email: string; IMEI: string; user_id: string; category: string; section: number; id: number; }, arg1: number, res: functions.Response<any>) {
-   
-    res.json({message: "OK"})
-}
 
