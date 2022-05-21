@@ -1,6 +1,7 @@
 import * as functions from 'firebase-functions'
 import {db, db_sec, admin, sec_admin} from '../config/firebase' 
 import axios from "axios";
+import { String } from 'aws-sdk/clients/appstream';
 require('dotenv').config()
 
 
@@ -24,6 +25,16 @@ type Register = {
 }
 
 
+type GroupWithdrawal = {
+    User:{
+        doc_id:string,
+        user_id:string,
+        email:string,
+        IMEI:string
+    }
+}
+
+
 type GroupCreation = {
     User:{
         members_ids:any,
@@ -32,7 +43,7 @@ type GroupCreation = {
         user_id:string,
         groupName:string,
         amount:number,
-        Liquidator_size:number,
+        liquidator_size:number,
         miner_stake:number;
         timestamp:any,
         doc_id:any,
@@ -43,6 +54,17 @@ type GroupCreation = {
     }
 }
 
+
+
+type UserRequest = {
+    User:{
+        user_id:string,
+        email:string,
+        IMEI:string,
+        doc_id:string,
+        creator:string
+    }
+}
 
 type CheckUserStat = {
     User:{
@@ -132,6 +154,8 @@ async function Isvalid (body: any) {
 
 
 
+
+
 export const Vault = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
@@ -141,11 +165,14 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
                        const data:any = CheckForNode((await docs.get()).data());
                              if(data.User_details.gas > user.User.amount){
-                                  let m =  docs.collection(user.User.user_id+"_Stakes").doc()
+                                  let m =  docs.collection(user.User.user_id+"_stakes").doc()
                                   user.User.doc_id = m.id;
                                     members.push(user.User.user_id);
                                       user.User.timestamp = Date.now();
                                        user.User.members_ids = members;
+                                         user.User.liquidity = user.User.amount;
+                                           user.User.profit = 0;
+                                            user.User.loss = 0;
                                          m.set(user);
                                      docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
                                     if(m.id)
@@ -165,6 +192,80 @@ export const Vault = functions.https.onRequest(async (req,res) => {
 
     
 })
+
+
+
+
+
+export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
+        try{
+            let  user: UserRequest = req.body;
+            let grouplist:any [] = [];
+            if(await Isvalid(user.User)){
+                    let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                        let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator).collection(user.User.creator+"_stakes").doc(user.User.doc_id)
+                         if((await creator.get()).exists){
+                           let Usercheck:any = CheckForNode((await account.get()).data());
+                             let Groupcheck:any = CheckForNode((await creator.get()).data());
+
+                             for(let m = 0; m < Groupcheck.User.members_ids.length; m++)
+                                  grouplist.push(Groupcheck.User.members_ids[m]);
+
+                               if(Groupcheck.User.members_ids.length <= Groupcheck.User.liquidator_size)
+                                   {
+                                    if(Usercheck.User_details.gas > Groupcheck.User.amount)
+                                        {
+                                           if(!Groupcheck.User.members_ids.includes(user.User.user_id))
+                                                {
+                                                    grouplist.push(user.User.user_id);
+                                                       creator.update("User.members_ids",grouplist);
+                                                           account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas));
+                                                                    creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount));
+                                                                        account.collection(process.env.REACT_APP_JOINED_GROUP!).doc()
+                                                                                    .set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,
+                                                                                                 doc_id:Groupcheck.User.doc_id}});
+                                                                                 if(Groupcheck.User.liquidator_size === grouplist.length)
+                                                                                       creator.update("User.active",true);    
+                                                                         res.json({message:  "You have been accepted"});           
+                                                }
+                                                 else
+                                                    res.json({message: "Sorry you already added !"})
+                                     }else
+                                        res.json({message: "Insufficient funds pls purchase more gas !"})
+                               }else
+                                   res.json({message: "Group already complete !"})
+                            }
+                            else
+                               res.json({message: "Group doesn't exists !"})
+
+              }
+               else
+                  res.json({message: "Unauthorized Request !"});
+           }catch(err){
+            res.json({message: err as Error})
+        }
+})
+
+
+
+
+
+export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
+      let user:GroupWithdrawal = req.body;
+         if(await Isvalid(user.User)){
+             let sum = [];
+                 let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);
+                  let m:any = CheckForNode((await account.get()).data());
+                    let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id)
+                      
+                        //Nw check phone logic
+        
+                }else
+            res.json({message: "Unauthorized Request !"});
+})
+
+
+
 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
@@ -287,13 +388,14 @@ function Group_action(User:any, arg1: number, res: functions.Response<any>) {
 
 function Action(id:any,acct:any,bal:number):Number{
     let e = 0;
+
      if(id === 1)
          e = acct  + bal;
-     else{
+       else
            e = acct - bal; 
-           return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
-      }  
-      return parseInt(e.toString());
+
+return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
+      
 } 
 
 
