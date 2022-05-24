@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions'
 import {db, db_sec, admin, sec_admin} from '../config/firebase' 
 import axios from "axios";
 import { String } from 'aws-sdk/clients/appstream';
+import e = require('express');
 require('dotenv').config()
 
 
@@ -79,6 +80,16 @@ type CheckUserStat = {
 }
 
 
+type GroupStatus = {
+    User:{
+        email:string,
+        IMEI:string,
+        user_id:string,
+        doc_id:string,
+        creator_id:string
+    }
+}
+
 type QuestionObj = {
     sessionID :string,
     email:string,
@@ -116,6 +127,130 @@ export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => 
                 res.json({message: "Unauthorized Request !"});
          
 })
+
+
+
+
+
+
+
+
+export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
+    try{
+        //  if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                 let user: Register = req.body
+                      sec_admin.createUser({ 
+                                    email: user.User.email,  
+                                    emailVerified:false,
+                                    password:user.User.password,
+                                    disabled:false,
+                                }).then(async (useRecord) => {
+
+                                    user.User.password = "";
+                                    user.User.user_id = useRecord.uid;
+                                    //Check for rough users
+                                    user.User_details.bal = 0;
+                                    user.User_details.gas = 0;
+
+                                    let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
+                                    let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
+                                    doc.set(user);
+                                    doc_sec.set(user);
+                                        if(doc.id && doc_sec.id)
+                                          return  res.json({message: "Account created"})
+                                        else
+                                           return res.json({message: "Account wasn't created ! "})
+
+                                    }).catch((err => {
+                                        return  res.json({message: err as Error })
+                                }))
+                        //  }
+                        //    else
+                        //        res.json({message: "Unauthorized Request !"})
+                }catch(err){
+                    res.json({ message: err as Error})
+         }
+})
+
+
+
+
+export const UserFund = functions.https.onRequest(async (req,res) => {
+    try{
+         let user:CheckUserStat = req.body
+         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                if(await Isvalid(user.User)){
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                    if((await docs.get()).exists){
+                            const data:any = CheckForNode((await docs.get()).data());
+                                if(data.User_details.gas > 100)
+                                    res.json({message: true})
+                                else
+                                    res.json({message: false})
+                            }
+                            else 
+                                res.json({message:"Account not found"})
+                        }
+                            else
+                                res.json({message:"Unauthorized Request !"});
+                 }
+                  else
+                     res.json({message:"Unauthorized Request !"})
+
+          }catch(err){
+            res.json({message: err as Error})
+      }
+})
+
+
+
+
+
+
+//Check user session ID and auth id on call
+export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
+    try{
+      let user: CheckUserStat  = req.body;
+      let raw_data:any [] = []
+      if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+                if(await Isvalid(user.User)){
+                    if(user.User.id === 1){
+                        if(user.User.category.trim().length > 0){
+                            let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
+                            docs.forEach((doc: any) => raw_data.push(doc.data()));  
+
+                            let answer_lists = [];
+                            for(let e =0; e < user.User.list.length; e++){
+                                    let a:any = user.User.list[e];
+                                        for(let m=0; m < raw_data.length; m++){
+                                            if(a.question_id.toString() === raw_data[m].Q.id.toString()){
+                                                if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
+                                                    answer_lists.push(1);        
+                                        }
+                                    }                       
+                                }
+                                if(answer_lists.length === 5)                  
+                                    UpdateUserAccount(res,user,1); 
+                                else
+                                    UpdateUserAccount(res,user,2);
+
+                        }
+                        else
+                            UpdateUserAccount(res,user,2); 
+                        
+                        }else
+                           Group_action(user.User,1,res);
+                    }else
+                       res.json({message: "Unauthorized Request !"})
+            }
+             else
+               res.json({message:"Unauthorized Request !"})
+
+                }catch(err){
+                  res.json({message: err as Error})
+                }
+})
+
 
 
 
@@ -171,24 +306,25 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                                       user.User.timestamp = Date.now();
                                        user.User.members_ids = members;
                                          user.User.liquidity = user.User.amount;
-                                           user.User.profit = 0;
-                                            user.User.loss = 0;
-                                         m.set(user);
-                                     docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
+                                           //Check for rough users
+                                            user.User.profit = 0;
+                                               user.User.loss = 0;
+                                           m.set(user);
+                                       docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
                                     if(m.id)
-                                        res.json({message: `Group ${user.User.groupName} created `})
+                                        res.json({message: `Group ${user.User.groupName} created`})
                                     else
                                         res.json({message: `Group ${user.User.groupName} creation failed !`})
 
                                   }else
                                      res.json({message: "Insufficient funds pls purchase gas !"})
-                 })
-                   .catch(err => {
-                     res.json({message: err})
-            })
-    }
-    else 
-       res.json({message: "Unauthorized Request !"});
+                    })
+                    .catch(err => {
+                        res.json({message: err})
+                })
+        }
+        else 
+           res.json({message: "Unauthorized Request !"});
 
     
 })
@@ -226,7 +362,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                                                                  doc_id:Groupcheck.User.doc_id}});
                                                                                  if(Groupcheck.User.liquidator_size === grouplist.length)
                                                                                        creator.update("User.active",true);    
-                                                                         res.json({message:  "You have been accepted"});           
+                                                                         res.json({message:"You have been accepted"});           
                                                 }
                                                  else
                                                     res.json({message: "Sorry you already added !"})
@@ -261,119 +397,82 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                         //Nw check phone logic
         
                 }else
+                     res.json({message: "Unauthorized Request !"});
+})
+
+
+
+
+export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) => {
+    let user:GroupWithdrawal = req.body;
+     let raw1:any [] = []
+     let raw2:any [] = []
+       if(await Isvalid(user.User)){
+               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(user.User.user_id+"_stakes").get();
+                   let  joined = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).get();
+                       let doc1 =   (await account).docs;
+                         let doc2 =   (await joined).docs;
+                          doc1.forEach((doc: any) => raw1.push(doc.data()));  
+                             doc2.forEach((doc: any) => raw2.push(doc.data()));  
+                                   res.json({message: {listA:{raw1},listB:{raw2}}})
+              }else
+                   res.json({message: "Unauthorized Request !"});
+})
+
+
+
+
+
+
+export const ViewGroup = functions.https.onRequest(async (req,res) => {
+      let m:GroupStatus = req.body;
+         if(await Isvalid(m.User)){
+                    let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.creator_id).collection(m.User.creator_id+"_stakes").doc(m.User.doc_id)
+                        res.json({message: (await group.get()).data()})
+                }else
+                     res.json({message: "Unauthorized Request !"});
+})
+
+
+
+
+
+
+export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
+        let m: GroupWithdrawal = req.body;
+        let list:any = [];
+            if(await Isvalid(m.User)){
+                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
+                  const response = await docs.get();
+                    response.forEach(async (doc) => {
+                        let u:any = CheckForNode(doc.data());
+                        list.push(u.User.user_id);
+                        LoopForGroups(list,res,docs);
+                        })   
+                         
+        }else
             res.json({message: "Unauthorized Request !"});
 })
 
 
 
 
-
-export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
-    try{
-         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                 let user: Register = req.body
-                      admin.auth().createUser({ 
-                                    email: user.User.email,  
-                                    emailVerified:false,
-                                    password:user.User.password,
-                                    disabled:false,
-                                }).then(async (useRecord) => {
-                                    user.User.password = "";
-                                    user.User.user_id = useRecord.uid
-                                    let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
-                                    let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
-                                    doc.set(user);
-                                    doc_sec.set(user);
-                                        if(doc.id && doc_sec.id)
-                                          return  res.json({message: "Account created"})
-                                        else
-                                           return res.json({message: "Account wasn't created ! "})
-
-                                    }).catch((err => {
-                                        return  res.json({message: err as Error })
-                                }))
-                         }
-                           else
-                               res.json({message: "Unauthorized Request !"})
-                }catch(err){
-                    res.json({ message: err as Error})
-         }
-})
+async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>) {
+    let groups:GroupCreation [] = [];
+    for(let y=0; y < list.length; y++){
+         const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
+         const snapshot = await groupRef.where('User.active', '==', true).get();
+         if (snapshot.empty) 
+              console.log('No matching documents.');
+          else
+            snapshot.forEach((doc:any) => {
+                groups.push(doc.data());
+            });
+    }
+    res.json({message: groups})
+}
 
 
-
-
-export const UserFund = functions.https.onRequest(async (req,res) => {
-    try{
-         let user:CheckUserStat = req.body
-         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                if(await Isvalid(user.User)){
-                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                    if((await docs.get()).exists){
-                            const data:any = CheckForNode((await docs.get()).data());
-                                if(data.User_details.gas > 100)
-                                    res.json({message: true})
-                                else
-                                    res.json({message: false})
-                            }
-                            else 
-                                res.json({message:"Account not found"})
-                        }
-                            else
-                                res.json({message:"Unauthorized Request !"});
-                 }
-                  else
-                     res.json({message:"Unauthorized Request !"})
-
-          }catch(err){
-            res.json({message: err as Error})
-      }
-})
-
-
-//Check user session ID and auth id on call
-export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
-    try{
-      let user: CheckUserStat  = req.body;
-      let raw_data:any [] = []
-      if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                if(await Isvalid(user.User)){
-                    if(user.User.id === 1){
-                        if(user.User.category.trim().length > 0){
-                            let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
-                            docs.forEach((doc: any) => raw_data.push(doc.data()));  
-
-                            let answer_lists = [];
-                            for(let e =0; e < user.User.list.length; e++){
-                                    let a:any = user.User.list[e];
-                                        for(let m=0; m < raw_data.length; m++){
-                                            if(a.question_id.toString() === raw_data[m].Q.id.toString()){
-                                                if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
-                                                    answer_lists.push(1);        
-                                        }
-                                    }                       
-                                }
-                                if(answer_lists.length === 5)                  
-                                    UpdateUserAccount(res,user,1); 
-                                else
-                                    UpdateUserAccount(res,user,2);
-
-                        }
-                        else
-                            UpdateUserAccount(res,user,2); 
-                        
-                        }else
-                           Group_action(user.User,1,res);
-                    }else
-                       res.json({message: "Unauthorized Request !"})
-            }
-             else
-               res.json({message:"Unauthorized Request !"})
-
-                }catch(err){
-                  res.json({message: err as Error})
-                }
-})
 
 
 
@@ -767,6 +866,13 @@ function CheckForNode(X:any) {
     const data = Object.fromEntries(map);
     return data;
 }
+
+
+
+
+
+
+
 
 
 
