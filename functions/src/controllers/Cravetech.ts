@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions'
 import {db, db_sec, admin, sec_admin} from '../config/firebase' 
 import axios from "axios";
-import { String } from 'aws-sdk/clients/appstream';
+import { v4 as uuid } from 'uuid'
 import e = require('express');
 require('dotenv').config()
 
@@ -51,7 +51,8 @@ type GroupCreation = {
         profit:number,
         loss:number,
         liquidity:number,
-        active:boolean
+        active:boolean,
+        odd:number
     }
 }
 
@@ -137,7 +138,7 @@ export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
-        //  if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
                  let user: Register = req.body
                       sec_admin.createUser({ 
                                     email: user.User.email,  
@@ -151,26 +152,29 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     //Check for rough users
                                     user.User_details.bal = 0;
                                     user.User_details.gas = 0;
+                                    user.User.IMEI = uuid()+"_"+ Date.now()
 
-                                    let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
-                                    let doc_sec = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid);
-                                    doc.set(user);
-                                    doc_sec.set(user);
-                                        if(doc.id && doc_sec.id)
+                                    let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;
+                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
+                                    if(doc && doc_sec)
                                           return  res.json({message: "Account created"})
-                                        else
-                                           return res.json({message: "Account wasn't created ! "})
+                                    else
+                                           return res.json({message: "Account wasn't created !"})
 
                                     }).catch((err => {
                                         return  res.json({message: err as Error })
                                 }))
-                        //  }
-                        //    else
-                        //        res.json({message: "Unauthorized Request !"})
+                         }
+                           else
+                               res.json({message: "Unauthorized Request !"})
                 }catch(err){
                     res.json({ message: err as Error})
          }
 })
+
+
+
+
 
 
 
@@ -258,15 +262,29 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
     let data: CheckUserStat = req.body;
     let raw_data:Qs [] = [];
-    let list:any = [];
+    let list:any [] = [];
     if(await Isvalid(data.User)){
-            let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
-                docs.forEach((doc: any) => raw_data.push(doc.data()));   
-                    res.json({message:raw_data})
-                } else  {
-                    list.push({error: "Unauthorized Request !"});
-                    res.json({message: list});
-                }
+        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.user_id);
+        if((await doc.get()).exists){
+                const user_data:any = CheckForNode((await doc.get()).data());
+                    if(user_data.User_details.gas > 100){
+                        let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
+                        docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                            res.json({message:raw_data})
+                        } else { 
+                            list.push({error: "Insufficient funds pls purchase gas !"})
+                              res.json({message: list})
+                       }
+                    }
+                    else {
+                        list.push({error: "Account Doesn't exist !"});
+                           res.json({message: list});
+                }      
+           }else{
+             list.push({error: "Unauthorized Request !"});
+               res.json({message: list});
+        }
+         
 })
 
 
@@ -306,11 +324,12 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                                       user.User.timestamp = Date.now();
                                        user.User.members_ids = members;
                                          user.User.liquidity = user.User.amount;
+                                         user.User.active = user.User.liquidator_size === 1 ? true : false
                                            //Check for rough users
                                             user.User.profit = 0;
                                                user.User.loss = 0;
-                                           m.set(user);
-                                       docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
+                                                 m.set(user);
+                                     docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
                                     if(m.id)
                                         res.json({message: `Group ${user.User.groupName} created`})
                                     else
@@ -446,13 +465,13 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                   const response = await docs.get();
                     response.forEach(async (doc) => {
                         let u:any = CheckForNode(doc.data());
-                        list.push(u.User.user_id);
-                        LoopForGroups(list,res,docs);
-                        })   
-                         
+                          list.push(u.User.user_id);
+                           LoopForGroups(list,res,docs); 
+                 })        
         }else
             res.json({message: "Unauthorized Request !"});
 })
+
 
 
 
