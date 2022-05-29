@@ -187,7 +187,7 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
                     if((await docs.get()).exists){
                             const data:any = CheckForNode((await docs.get()).data());
-                                if(data.User_details.gas > 100)
+                                if(data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!))
                                     res.json({message: true})
                                 else
                                     res.json({message: false})
@@ -218,7 +218,6 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
       let raw_data:any [] = []
       if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
                 if(await Isvalid(user.User)){
-                    if(user.User.id === 1){
                         if(user.User.category.trim().length > 0){
                             let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
                             docs.forEach((doc: any) => raw_data.push(doc.data()));  
@@ -236,14 +235,10 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                 if(answer_lists.length === 5)                  
                                     UpdateUserAccount(res,user,1); 
                                 else
-                                    UpdateUserAccount(res,user,2);
-
+                                      UpdateUserAccount(res,user,2);
                         }
                         else
                             UpdateUserAccount(res,user,2); 
-                        
-                        }else
-                           Group_action(user.User,1,res);
                     }else
                        res.json({message: "Unauthorized Request !"})
             }
@@ -258,6 +253,60 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 
+
+
+export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
+    let user:GroupWithdrawal = req.body;
+       if(await Isvalid(user.User)){
+           let sum = [];
+               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);
+                let m:any = CheckForNode((await account.get()).data());
+                  let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id)
+                    
+                      //Nw check phone logic
+      
+              }else
+                   res.json({message: "Unauthorized Request !"});
+})
+
+
+
+
+
+export const  User_action = functions.https.onRequest(async (req,res) => {
+    let list:any = []
+    let dulist:any = [];
+    res.json({message: SendOff(dulist,list)})
+
+})
+
+
+
+
+export const  Group_action = functions.https.onRequest(async (req,res) => {
+    let list:any = []
+    let dulist:any = [];
+    res.json({message: SendOff(dulist,list)})
+})
+
+
+
+function SendOff(dulist: any, list: any) {
+    while (true) {
+        list.push(getRandom(100))
+        if(uniq(list).length === 8)
+              return uniq(list);
+    }
+}
+
+
+function uniq(a:any) {
+    return Array.from(new Set(a));
+ }
+
+
+
+
 //Check user bal and gas 
 export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
     let data: CheckUserStat = req.body;
@@ -267,7 +316,7 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
         let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.user_id);
         if((await doc.get()).exists){
                 const user_data:any = CheckForNode((await doc.get()).data());
-                    if(user_data.User_details.gas > 100){
+                    if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
                         let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
                         docs.forEach((doc: any) => raw_data.push(doc.data()));   
                             res.json({message:raw_data})
@@ -405,19 +454,6 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
 
 
 
-export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
-      let user:GroupWithdrawal = req.body;
-         if(await Isvalid(user.User)){
-             let sum = [];
-                 let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);
-                  let m:any = CheckForNode((await account.get()).data());
-                    let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id)
-                      
-                        //Nw check phone logic
-        
-                }else
-                     res.json({message: "Unauthorized Request !"});
-})
 
 
 
@@ -466,7 +502,25 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                     response.forEach(async (doc) => {
                         let u:any = CheckForNode(doc.data());
                           list.push(u.User.user_id);
-                           LoopForGroups(list,res,docs); 
+                           LoopForGroups(list,res,docs,1); 
+                 })        
+        }else
+            res.json({message: "Unauthorized Request !"});
+})
+
+
+
+
+export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
+        let m: GroupWithdrawal = req.body;
+        let list:any = [];
+            if(await Isvalid(m.User)){
+                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
+                  const response = await docs.get();
+                    response.forEach(async (doc) => {
+                        let u:any = CheckForNode(doc.data());
+                          list.push(u.User.user_id);
+                           LoopForGroups(list,res,docs,2); 
                  })        
         }else
             res.json({message: "Unauthorized Request !"});
@@ -476,13 +530,13 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
 
 
 
-async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>) {
+async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:number) {
     let groups:GroupCreation [] = [];
     for(let y=0; y < list.length; y++){
          const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
-         const snapshot = await groupRef.where('User.active', '==', true).get();
+         const snapshot = await groupRef.where('User.active', '==', call === 1 ? true : false).get();
          if (snapshot.empty) 
-              console.log('No matching documents.');
+              console.log('NMD');
           else
             snapshot.forEach((doc:any) => {
                 groups.push(doc.data());
@@ -497,21 +551,19 @@ async function LoopForGroups(list: any[], res: functions.Response<any>, docs: Fi
 
 
 
-function Group_action(User:any, arg1: number, res: functions.Response<any>) {
-    res.json({message: "Group"})
-}
+
+
+
 
 
 
 
 function Action(id:any,acct:any,bal:number):Number{
     let e = 0;
-
      if(id === 1)
          e = acct  + bal;
        else
            e = acct - bal; 
-
 return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
       
 } 
@@ -885,6 +937,10 @@ function CheckForNode(X:any) {
     const data = Object.fromEntries(map);
     return data;
 }
+
+
+
+
 
 
 
