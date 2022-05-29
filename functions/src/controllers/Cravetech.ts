@@ -329,13 +329,11 @@ function caclulate(res: functions.Response<any>, user: UserNoRequest, ran: numbe
           for(let i=0; i<select.length; i++)
               if(select[i] === lucky[0]){
                 indopotency = true;
-                Account(res,user,1,lucky)
+                Account(res,user,1,uniq(lucky));
               }
-
+              
               if(!indopotency)
-                  Account(res,user,2,lucky)
-
-            console.log(uniq(lucky),lucky[0]);              
+                  Account(res,user,2,uniq(lucky));             
     }
     else
         res.json({message: "Invalid data !"}) //disable & freeze funds account 
