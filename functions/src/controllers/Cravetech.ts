@@ -79,6 +79,7 @@ type UserNoRequest = {
         isUser:false,
         isBot:false,
         creator:[],
+        user_selected:[],
         creator_id:string,
         doc_id:string
     }
@@ -249,12 +250,12 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                     }                       
                                 }
                                 if(answer_lists.length === 5)                  
-                                      UpdateUserAccount(res,user,1,"You won this stage"); 
+                                      UpdateUserAccount(res,user,1,"You won this stage",[]); 
                                 else
-                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !");
+                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",[]);
                         }
                         else
-                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !"); 
+                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",[]); 
                     }else
                        res.json({message: "Unauthorized Request !"})
             }
@@ -292,25 +293,26 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
-    if(await Isvalid(user.User)){
+    // if(await Isvalid(user.User)){
          if(user.User.isUser && user.User.creator.length > 0)
-                caclulate(res,user,getRandom(100),1,[]);
+                caclulate(res,user,getRandom(100),[],[],1);
         else 
             if(user.User.isBot && user.User.creator.length <= 0)
-                res.json({message: SendOff(list)})
+                res.json({message: SendOff(list,100,8)})
          else
             if(user.User.isBot && user.User.creator.length > 0)
-                 caclulate(res,user,getRandom(100),2,user.User.creator);
-      }
-        else{
-              list.push({error: "Unauthorized Request !"})
-                 res.json({message: list});
-      }
+                 caclulate(res,user,getRandom(100),user.User.creator,user.User.user_selected,2);
+    //   }
+    //     else{
+    //           list.push({error: "Unauthorized Request !"})
+    //              res.json({message: list});
+    //   }
 })
 
 
 
-function caclulate(res: functions.Response<any>, user: UserNoRequest, ran: number,i:number, scores:number[]) {
+function caclulate(res: functions.Response<any>, user: UserNoRequest, ran: number,scores:number[],select:number[],i:number) {
+   let indopotency = false;
     if(i === 1)
     {
         for(let d = 0; d < user.User.creator.length; d++)
@@ -318,15 +320,26 @@ function caclulate(res: functions.Response<any>, user: UserNoRequest, ran: numbe
                 Account(res,user,1,ran);
         Account(res,user,2,ran);
     }
-    else
-    {
-        let lucky = scores[getRandom(scores.length)]
-        
+    else 
+        if(select.length <= 3 && i === 2){
+          let lucky = [];
+            for(let m=0; m<scores.length; m++)
+                lucky.push(scores[getRandom(scores.length)]);
+
+          for(let i=0; i<select.length; i++)
+              if(select[i] === lucky[0]){
+                indopotency = true;
+                Account(res,user,1,lucky)
+              }
+
+              if(!indopotency)
+                  Account(res,user,2,lucky)
+
+            console.log(uniq(lucky),lucky[0]);              
     }
+    else
+        res.json({message: "Invalid data !"}) //disable & freeze funds account 
 }
-
-
-
 
 
 
@@ -336,7 +349,7 @@ export const  Group_action = functions.https.onRequest(async (req,res) => {
     let user:UserNoRequest = req.body;
     if(await Isvalid(user.User)){
         if(user.User.isGroup && user.User.isBot && user.User.creator.length <= 0)
-            res.json({message: SendOff(list)})
+            res.json({message: SendOff(list,100,8)})
          else  
              if(user.User.isGroup && user.User.isBot && user.User.creator.length > 0) 
                     console.log()
@@ -353,16 +366,16 @@ export const  Group_action = functions.https.onRequest(async (req,res) => {
 
 
 
-async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:number) {
+async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
     let list = [];
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
            if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
                      if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
                         if(i === 1)
-                            UpdateUserAccount(res,user,i,"You won this stage number returned  "+rt);
+                            UpdateUserAccount(res,user,i,"You won this stage number returned  ",rt);
                         else
-                            UpdateUserAccount(res,user,i,"Sorry you didn't win this stage ! number returned "+rt);
+                            UpdateUserAccount(res,user,i,"Sorry you didn't win this stage ! number returned",rt);
                        }else{
                           list.push({error: "Insufficient funds pls purchase gas !"})
                              res.json({message: list})
@@ -375,49 +388,19 @@ async function Account(res: functions.Response<any>, user: UserNoRequest,i:numbe
 
 
 
-async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number,messages:string) {
+async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number,messages:string,rt:number[]) {
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
        let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
            if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
                       const adata:any = CheckForNode((await admindoc.get()).data());
                      if(i ===  1){ //still needs more check
-                          let userData = {
-                                  User:{
-                                          IMEI:data.User.IMEI, 
-                                          email:data.User.email, 
-                                          user_id:data.User.user_id,
-                                          UserCategory:data.User.UserCategory, 
-                                      },  
-                                   User_details:{
-                                          bankSelected:data.User_details.bankSelected, 
-                                          NameOnAccount:data.User_details.NameOnAccount, 
-                                          bal: Action(1,adata.credit,data.User_details.bal),
-                                          gas: data.User_details.gas,
-                                          bankAccountNo: data.User_details.bankAccountNo
-                                      }   
-                               }
-                               doc_.set(userData);
-                               return res.json({message: messages})
+                          doc_.update("User_details.bal", Action(1,adata.credit,data.User_details.bal));
+                        return res.json({message: {m1:messages, m2:rt}})
                     }else
                          if(i ===  2){ //still needs more check   
-                                   let userData = {
-                                      User:{
-                                              IMEI:data.User.IMEI, 
-                                              email:data.User.email, 
-                                              user_id:data.User.user_id,
-                                              UserCategory:data.User.UserCategory, 
-                                          },  
-                                       User_details:{
-                                              bankSelected:data.User_details.bankSelected, 
-                                              NameOnAccount:data.User_details.NameOnAccount, 
-                                              bal:data.User_details.bal,
-                                              gas: Action(2,adata.debit,data.User_details.gas),
-                                              bankAccountNo:data.User_details.bankAccountNo
-                                          }
-                                  }
-                                   doc_.set(userData);
-                                   return  res.json({message: messages})
+                            doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
+                        return res.json({message: {m1:messages, m2:rt}})
                           }
                   }else 
                     return   res.json({message: "Account not found"})
@@ -1007,10 +990,10 @@ function CheckForNode(X:any) {
 
 
 
-function SendOff(list: any) {
+function SendOff(list: any,size:number,cons:number) {
     while (true) {
-        list.push(getRandom(100))
-        if(uniq(list).length === 8)
+        list.push(getRandom(size))
+        if(uniq(list).length === cons)
               return uniq(list);
     }
 }
@@ -1019,6 +1002,7 @@ function SendOff(list: any) {
 function uniq(a:any) {
     return Array.from(new Set(a));
  }
+
 
 
 
