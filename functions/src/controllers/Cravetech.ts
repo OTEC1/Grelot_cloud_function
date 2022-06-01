@@ -363,8 +363,10 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                     Account(res,user,1,lucky[bet]);  
                     indopotency = true;
                  }
-        if(!indopotency) //check for rough request
-            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:lucky[bet]}})       
+        if(!indopotency){ //check for rough request
+            Debit_account(user); 
+            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:lucky[bet]}}) 
+        }      
     }
     else
         res.json({message: "Invalid data !"}) //disable & freeze funds account 
