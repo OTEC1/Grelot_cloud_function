@@ -250,12 +250,12 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                     }                       
                                 }
                                 if(answer_lists.length === 5)                  
-                                      UpdateUserAccount(res,user,1,"You won this stage",[]); 
+                                      UpdateUserAccount(res,user,1,"You won this stage",undefined); 
                                 else
-                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",[]);
+                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined);
                         }
                         else
-                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",[]); 
+                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined); 
                     }else
                        res.json({message: "Unauthorized Request !"})
             }
@@ -293,47 +293,78 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
-    // if(await Isvalid(user.User)){
-         if(user.User.isUser && user.User.creator.length > 0)
-                caclulate(res,user,getRandom(100),[],[],1);
-        else 
-            if(user.User.isBot && user.User.creator.length <= 0)
-                res.json({message: SendOff(list,100,8)})
+
+     if(await Isvalid(user.User)){
+         if(user.User.isUser && user.User.user_selected.length > 0){
+              if(await Debit_account(user))
+                 caclulate(res,user,getRandom(100),[],[],1);
+                 else{
+                    list.push({error: "Insufficient funds pls purchase gas !"})
+                     res.json({message: list})
+                }
+         }else 
+            if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
+                if(await Debit_account(user)){
+                     Debit_account(user); 
+                      res.json({message: SendOff(list,100,8)})
+                 }else{
+                    list.push({error: "Insufficient funds pls purchase gas !"})
+                      res.json({message: list})
+                 }
+         }
          else
-            if(user.User.isBot && user.User.creator.length > 0)
-                 caclulate(res,user,getRandom(100),user.User.creator,user.User.user_selected,2);
-    //   }
-    //     else{
-    //           list.push({error: "Unauthorized Request !"})
-    //              res.json({message: list});
-    //   }
+            if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0)
+                 caclulate(res,user,0,user.User.creator,user.User.user_selected,2);
+        }
+            else{
+                list.push({error: "Unauthorized Request !"})
+                    res.json({message: list});
+        }
 })
 
 
 
-function caclulate(res: functions.Response<any>, user: UserNoRequest, ran: number,scores:number[],select:number[],i:number) {
-   let indopotency = false;
+async function Debit_account(user:UserNoRequest){
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+    let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+        if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+               const data:any = CheckForNode((await doc_.get()).data());
+                  const adata:any = CheckForNode((await admindoc.get()).data());
+                     if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
+                         doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
+                          return true;
+                        }else
+                           return false;
+            }
+}
+
+
+
+function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
+    let indopotency = false;
     if(i === 1)
     {
-        for(let d = 0; d < user.User.creator.length; d++)
-            if(user.User.creator[d] === ran)
+        for(let d = 0; d < user.User.user_selected.length; d++)
+            if(user.User.user_selected[d] === ran){
                 Account(res,user,1,ran);
-        Account(res,user,2,ran);
+                indopotency = true;
+            }
+        if(!indopotency)
+            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:ran}})
     }
     else 
         if(select.length <= 3 && i === 2){
-          let lucky = [];
+          let lucky = [],bet;
             for(let m=0; m<scores.length; m++)
                 lucky.push(scores[getRandom(scores.length)]);
-
-          for(let i=0; i<select.length; i++)
-              if(select[i] === lucky[0]){
-                indopotency = true;
-                Account(res,user,1,uniq(lucky));
-              }
-              
-              if(!indopotency)
-                  Account(res,user,2,uniq(lucky));             
+            bet = getRandom(scores.length);
+            for(let i=0; i<select.length; i++)
+                 if(select[i] === lucky[bet]){
+                    Account(res,user,1,lucky[bet]);  
+                    indopotency = true;
+                 }
+        if(!indopotency) //check for rough request
+            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:lucky[bet]}})       
     }
     else
         res.json({message: "Invalid data !"}) //disable & freeze funds account 
@@ -371,7 +402,7 @@ async function Account(res: functions.Response<any>, user: UserNoRequest,i:numbe
                   const data:any = CheckForNode((await doc_.get()).data());
                      if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
                         if(i === 1)
-                            UpdateUserAccount(res,user,i,"You won this stage number returned  ",rt);
+                            UpdateUserAccount(res,user,i,"You won this stage number returned",rt);
                         else
                             UpdateUserAccount(res,user,i,"Sorry you didn't win this stage ! number returned",rt);
                        }else{
@@ -386,7 +417,14 @@ async function Account(res: functions.Response<any>, user: UserNoRequest,i:numbe
 
 
 
-async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number,messages:string,rt:number[]) {
+async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number,ms:string,rt:any) {
+    let messages;
+
+    if(rt !== undefined)
+        messages = {m1:ms,m2:rt}
+    else
+        messages = ms;
+
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
        let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
            if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
@@ -394,14 +432,14 @@ async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number
                       const adata:any = CheckForNode((await admindoc.get()).data());
                      if(i ===  1){ //still needs more check
                           doc_.update("User_details.bal", Action(1,adata.credit,data.User_details.bal));
-                        return res.json({message: {m1:messages, m2:rt}})
-                    }else
+                            return res.json({message:messages})
+                      }else
                          if(i ===  2){ //still needs more check   
                             doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
-                        return res.json({message: {m1:messages, m2:rt}})
+                              return res.json({message:messages})
                           }
-                  }else 
-                    return   res.json({message: "Account not found"})
+                     }else 
+                          return  res.json({message: "Account not found"})
 }
 
 
