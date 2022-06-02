@@ -293,31 +293,35 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
-
+//retofit check
      if(await Isvalid(user.User)){
          if(user.User.isUser && user.User.user_selected.length > 0){
               if(await Debit_account(user))
                  caclulate(res,user,getRandom(100),[],[],1);
                  else{
-                    list.push({error: "Insufficient funds pls purchase gas !"})
+                    list.push({m1: "Insufficient funds pls purchase gas !"})
                      res.json({message: list})
                 }
          }else 
             if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
-                if(await Debit_account(user)){
-                     Debit_account(user); 
-                      res.json({message: SendOff(list,100,8)})
-                 }else{
-                    list.push({error: "Insufficient funds pls purchase gas !"})
+                if(await Debit_account(user))
+                      res.json({message: SendOff(list,100,12)})
+                 else{
+                    list.push({m1: "Insufficient funds pls purchase gas !"})
                       res.json({message: list})
                  }
          }
          else
-            if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0)
+            if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
+              if(await Debit_account(user))
                  caclulate(res,user,0,user.User.creator,user.User.user_selected,2);
-        }
             else{
-                list.push({error: "Unauthorized Request !"})
+                 list.push({m1: "Insufficient funds pls purchase gas !"})
+                    res.json({message: list})
+                 }
+           }
+            else{
+                list.push({m1: "Unauthorized Request !"})
                     res.json({message: list});
         }
 })
@@ -330,12 +334,12 @@ async function Debit_account(user:UserNoRequest){
         if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
-                     if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
-                         doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
-                          return true;
-                        }else
-                           return false;
-            }
+                if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
+                    doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
+                    return true;
+                }else
+                    return false;
+        }
 }
 
 
@@ -350,7 +354,7 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                 indopotency = true;
             }
         if(!indopotency)
-            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:ran}})
+            return res.json({message:{m1:"Sorry you didn't win this stage !",m2:ran}})
     }
     else 
         if(select.length <= 3 && i === 2){
@@ -363,10 +367,10 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                     Account(res,user,1,lucky[bet]);  
                     indopotency = true;
                  }
-        if(!indopotency){ //check for rough request
-            Debit_account(user); 
-            return res.json({message:{m1:"Sorry you didn't win this stage ! number returned",m2:lucky[bet]}}) 
-        }      
+        if(!indopotency) //check for rough request
+               return res.json({message:{m1:"Sorry you didn't win this stage !",m2:lucky[bet]}}) 
+            
+              
     }
     else
         res.json({message: "Invalid data !"}) //disable & freeze funds account 
