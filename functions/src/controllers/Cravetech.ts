@@ -136,13 +136,11 @@ type Qs = {
 
 export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
     let data:CheckUserStat = req.body
-        if(await Isvalid(data.User)){
+        if(await Isvalid(data.User,res,req)){
             let table = "CreavatechQ_"+data.User.category;
             let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
                 res.json({message: (await doc).length})
-            }
-             else 
-                res.json({message: "Unauthorized Request !"});
+        }
          
 })
 
@@ -200,7 +198,7 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
     try{
          let user:CheckUserStat = req.body
          if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                if(await Isvalid(user.User)){
+                if(await Isvalid(user.User,res,req)){
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
                     if((await docs.get()).exists){
                             const data:any = CheckForNode((await docs.get()).data());
@@ -215,9 +213,6 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
                             else
                                 res.json({message:"Unauthorized Request !"});
                  }
-                  else
-                     res.json({message:"Unauthorized Request !"})
-
           }catch(err){
             res.json({message: err as Error})
       }
@@ -233,8 +228,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
       let user: CheckUserStat  = req.body;
       let raw_data:any [] = []
-      if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                if(await Isvalid(user.User)){
+                if(await Isvalid(user.User,res,req)){
                         if(user.User.category.trim().length > 0){
                             let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
                             docs.forEach((doc: any) => raw_data.push(doc.data()));  
@@ -256,11 +250,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                         }
                         else
                             UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined); 
-                    }else
-                       res.json({message: "Unauthorized Request !"})
-            }
-             else
-               res.json({message:"Unauthorized Request !"})
+                    }
 
                 }catch(err){
                   res.json({message: err as Error})
@@ -274,7 +264,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
-       if(await Isvalid(user.User)){
+       if(await Isvalid(user.User,res,req)){
            let sum = [];
                let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);
                 let m:any = CheckForNode((await account.get()).data());
@@ -282,8 +272,7 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                     
                       //Nw check phone logic
       
-              }else
-                   res.json({message: "Unauthorized Request !"});
+              }
 })
 
 
@@ -294,7 +283,7 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
 //retofit check
-     if(await Isvalid(user.User)){
+     if(await Isvalid(user.User,res,req)){
          if(user.User.isUser && user.User.user_selected.length > 0){
               if(await Debit_account(user))
                  caclulate(res,user,getRandom(100),[],[],1);
@@ -320,10 +309,6 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
                     res.json({message: list})
                  }
            }
-            else{
-                list.push({m1: "Unauthorized Request !"})
-                    res.json({message: list});
-        }
 })
 
 
@@ -382,7 +367,7 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
 export const  Group_action = functions.https.onRequest(async (req,res) => {
     let list:any = [] 
     let user:UserNoRequest = req.body;
-    if(await Isvalid(user.User)){
+    if(await Isvalid(user.User,res,req)){
         if(user.User.isGroup && user.User.isBot && user.User.creator.length <= 0)
             res.json({message: SendOff(list,100,8)})
          else  
@@ -390,13 +375,20 @@ export const  Group_action = functions.https.onRequest(async (req,res) => {
                     console.log()
 
     }
-    else{
-        list.push({error: "Unauthorized Request !"})
-         res.json({message: list});
-    }
-   
 })
 
+
+
+
+
+export const Voches = functions.https.onRequest(async (req,res) => {
+    let list = [{Voches:{serial:98765456789,amount:10}},{Voches:{serial:4321234567,amount:25}},{Voches:{serial:76543456789,amount:35}},
+               {Voches:{serial:8765456789,amount:45}},{Voches:{serial:5430987123,amount:55}},{Voches:{serial:0981234575,amount:75}}]
+    let user:GroupWithdrawal = req.body;
+         if(await Isvalid(user.User,res,req)){
+                res.json({message:list})
+         }
+})
 
 
 
@@ -458,7 +450,7 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
     let data: CheckUserStat = req.body;
     let raw_data:Qs [] = [];
     let list:any [] = [];
-    if(await Isvalid(data.User)){
+    if(await Isvalid(data.User,res,req)){
         let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.user_id);
         if((await doc.get()).exists){
                 const user_data:any = CheckForNode((await doc.get()).data());
@@ -485,19 +477,23 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
 
 
 
-async function Isvalid (body: any) {
+async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
+    let list = [];
         let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
              if((await docs.get()).exists){
                      let data:any = CheckForNode((await docs.get()).data())
                              let res = await  sec_admin.getUser(body.user_id)
-                                if(res.email){
+                                if(res.email && request.headers['user-agent'] === process.env.REACT_APP_MACHINE){
                                      if(body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email)
                                             return true
-                                 }else
-                                      return false
-                                    
-                        }else
-                           return false
+                                 }else{
+                                        list.push({error: "Unauthorized Request !"});
+                                      return  response.json({message: list});
+                                      }
+                                }else{
+                                    list.push({error: "Unauthorized Request !"});
+                                    return response.json({message: list});
+                                }
 }
 
 
@@ -507,8 +503,8 @@ async function Isvalid (body: any) {
 export const Vault = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
-    if(await Isvalid(user.User)){
-        sec_admin.getUser(user.User.user_id)
+    if(await Isvalid(user.User,res,req)){
+         sec_admin.getUser(user.User.user_id)
             .then(async (use) => {
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
                        const data:any = CheckForNode((await docs.get()).data());
@@ -536,11 +532,7 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                     .catch(err => {
                         res.json({message: err})
                 })
-        }
-        else 
-           res.json({message: "Unauthorized Request !"});
-
-    
+        }    
 })
 
 
@@ -550,8 +542,8 @@ export const Vault = functions.https.onRequest(async (req,res) => {
 export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
         try{
             let  user: UserRequest = req.body;
-            let grouplist:any [] = [];
-            if(await Isvalid(user.User)){
+              let grouplist:any [] = [];
+                if(await Isvalid(user.User,res,req)){
                     let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
                         let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator).collection(user.User.creator+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
@@ -589,8 +581,6 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                res.json({message: "Group doesn't exists !"})
 
               }
-               else
-                  res.json({message: "Unauthorized Request !"});
            }catch(err){
             res.json({message: err as Error})
         }
@@ -608,7 +598,7 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
     let user:GroupWithdrawal = req.body;
      let raw1:any [] = []
      let raw2:any [] = []
-       if(await Isvalid(user.User)){
+       if(await Isvalid(user.User,res,req)){
                let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(user.User.user_id+"_stakes").get();
                    let  joined = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).get();
                        let doc1 =   (await account).docs;
@@ -616,8 +606,7 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
                           doc1.forEach((doc: any) => raw1.push(doc.data()));  
                              doc2.forEach((doc: any) => raw2.push(doc.data()));  
                                    res.json({message: {listA:{raw1},listB:{raw2}}})
-              }else
-                   res.json({message: "Unauthorized Request !"});
+              }
 })
 
 
@@ -627,11 +616,10 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
 
 export const ViewGroup = functions.https.onRequest(async (req,res) => {
       let m:GroupStatus = req.body;
-         if(await Isvalid(m.User)){
-                    let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.creator_id).collection(m.User.creator_id+"_stakes").doc(m.User.doc_id)
-                        res.json({message: (await group.get()).data()})
-                }else
-                     res.json({message: "Unauthorized Request !"});
+         if(await Isvalid(m.User,res,req)){
+                let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.creator_id).collection(m.User.creator_id+"_stakes").doc(m.User.doc_id)
+                    res.json({message: (await group.get()).data()})
+          }
 })
 
 
@@ -642,7 +630,7 @@ export const ViewGroup = functions.https.onRequest(async (req,res) => {
 export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
         let m: GroupWithdrawal = req.body;
         let list:any = [];
-            if(await Isvalid(m.User)){
+            if(await Isvalid(m.User,res,req)){
                 let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
                   const response = await docs.get();
                     response.forEach(async (doc) => {
@@ -650,8 +638,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                           list.push(u.User.user_id);
                            LoopForGroups(list,res,docs,1); 
                  })        
-        }else
-            res.json({message: "Unauthorized Request !"});
+        }
 })
 
 
@@ -660,7 +647,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
 export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
         let m: GroupWithdrawal = req.body;
         let list:any = [];
-            if(await Isvalid(m.User)){
+            if(await Isvalid(m.User,res,req)){
                 let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
                   const response = await docs.get();
                     response.forEach(async (doc) => {
@@ -668,8 +655,7 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
                           list.push(u.User.user_id);
                            LoopForGroups(list,res,docs,2); 
                  })        
-        }else
-            res.json({message: "Unauthorized Request !"});
+        }
 })
 
 
@@ -740,7 +726,9 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                     id = 17;
             else if(data.category == "Religion")
                     id = 9;
-           if(await Isvalid(data)){
+
+
+           if(await Isvalid(data,res,req)){
                if(data.section == 1){
                     axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
                            }).then(responseQ => { 
