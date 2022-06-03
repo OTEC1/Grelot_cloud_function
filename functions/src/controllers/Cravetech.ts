@@ -382,8 +382,9 @@ export const  Group_action = functions.https.onRequest(async (req,res) => {
 
 
 export const Voches = functions.https.onRequest(async (req,res) => {
-    let list = [{Voches:{serial:98765456789,amount:10}},{Voches:{serial:4321234567,amount:25}},{Voches:{serial:76543456789,amount:35}},
-               {Voches:{serial:8765456789,amount:45}},{Voches:{serial:5430987123,amount:55}},{Voches:{serial:0981234575,amount:75}}]
+
+    let list = [{serial:987654569,mode:"regular",amount:5},{serial:43212567,mode:"buget",amount:10},{serial:765436789,mode:"whip",amount:25},{serial:87654569,mode:"semi whip",amount:35},{serial:54309823,mode:"chief whip",amount:45},{serial:74512575,mode:"gold",amount:50},{serial:19812575,mode:"premium",amount:75}]
+
     let user:GroupWithdrawal = req.body;
          if(await Isvalid(user.User,res,req)){
                 res.json({message:list})
