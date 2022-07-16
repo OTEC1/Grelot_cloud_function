@@ -2,7 +2,6 @@ import * as functions from 'firebase-functions'
 import {db, db_sec, admin, sec_admin} from '../config/firebase' 
 import axios from "axios";
 import { v4 as uuid } from 'uuid'
-import e = require('express');
 require('dotenv').config()
 
 
@@ -138,7 +137,7 @@ export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => 
     let data:CheckUserStat = req.body
         if(await Isvalid(data.User,res,req)){
             let table = "CreavatechQ_"+data.User.category;
-            let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
+              let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
                 res.json({message: (await doc).length})
         }
          
@@ -153,16 +152,16 @@ export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
-         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
+          if(MACHINE_CHECK(req)){
                  let user: Register = req.body
-                      sec_admin.createUser({ 
+                      admin.auth().createUser({ 
                                     email: user.User.email,  
                                     emailVerified:false,
                                     password:user.User.password,
                                     disabled:false,
                                 }).then(async (useRecord) => {
 
-                                    user.User.password = "";
+                                    user.User.password = "N/A";
                                     user.User.user_id = useRecord.uid;
                                     //Check for rough users
                                     user.User_details.bal = 0;
@@ -170,8 +169,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     user.User.IMEI = uuid()+"_"+ Date.now()
 
                                     let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;
-                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
-                                    if(doc && doc_sec)
+                                    //let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
+                                    if(doc)
                                           return  res.json({message: "Account created"})
                                     else
                                            return res.json({message: "Account wasn't created !"})
@@ -179,9 +178,9 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     }).catch((err => {
                                         return  res.json({message: err as Error })
                                 }))
-                         }
-                           else
-                               res.json({message: "Unauthorized Request !"})
+                    }else
+                        Cancel([],res);
+
                 }catch(err){
                     res.json({ message: err as Error})
          }
@@ -197,21 +196,18 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
 export const UserFund = functions.https.onRequest(async (req,res) => {
     try{
          let user:CheckUserStat = req.body
-         if(req.headers['user-agent'] === process.env.REACT_APP_MACHINE){
                 if(await Isvalid(user.User,res,req)){
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
                     if((await docs.get()).exists){
                             const data:any = CheckForNode((await docs.get()).data());
-                                if(data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!))
+                                if(data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
                                     res.json({message: true})
+                                }
                                 else
                                     res.json({message: false})
                             }
                             else 
                                 res.json({message:"Account not found"})
-                        }
-                            else
-                                res.json({message:"Unauthorized Request !"});
                  }
           }catch(err){
             res.json({message: err as Error})
@@ -244,12 +240,12 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                     }                       
                                 }
                                 if(answer_lists.length === 5)                  
-                                      UpdateUserAccount(res,user,1,"You won this stage",undefined); 
+                                      UpdateUserAccount(res,user,1,"You won this stage",undefined,3,0); 
                                 else
-                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined);
+                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined,3,0);
                         }
                         else
-                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined); 
+                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined,3,0); 
                     }
 
                 }catch(err){
@@ -264,16 +260,101 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
-       if(await Isvalid(user.User,res,req)){
-           let sum = [];
-               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);
-                let m:any = CheckForNode((await account.get()).data());
-                  let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id)
+    //    if(await Isvalid(user.User,res,req)){
+               let  account =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
+                 if((await account.get()).exists){
+                        let m:any = CheckForNode((await account.get()).data());
+                            let group:any = db.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id);
+                                let filter:any = CheckForNode((await group.get()).data()); //Action(2,group.profit,profit[0])
+                                if(Divide(filter.User.members_ids,filter.User.profit)[0] != 0){
+                                        if(loopUser(filter.User.members_ids, user.User.user_id))
+                                            SendOutFunds(CheckIf(Divide(filter.User.members_ids, filter.User.profit), Divide(filter.User.members_ids, filter.User.profit).length >= 1 ? 2 : 1), filter.User,user,res,group);
+                                        else
+                                            res.json({message: "You are not a valid member !"}) // run warning script
+                                   }else    
+                                      res.json({message: "Insufficient group liquidity at this time !"}) 
+                        }else
+                              res.json({message: "Invalid request"}) // run warning script
+
+                    //}
+                }
                     
-                      //Nw check phone logic
-      
-              }
-})
+
+)
+
+
+
+
+function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) {
+    
+    //check if group.members_ids.length <= 0  ? run script : continue flow
+    console.log(profit);
+
+    let data = {User:{
+                     members_ids: Remove(group.members_ids,user.User.user_id), 
+                     email:group.email,
+                     IMEI:group.IMEI,
+                     user_id:group.user_id,
+                     groupName: group.groupName,
+                     amount: group.amount,
+                     liquidator_size: group.members_ids.length -1, 
+                     miner_stake: group.miner_stake,
+                     timestamp: group.timestamp,
+                     doc_id: group.doc_id,
+                     profit: Action(2,group.profit,profit[0]),
+                     loss: group.loss,
+                     liquidity: group.liquidity,
+                     active: group.active,
+                     odd: group.odd
+                     }
+                   };
+
+                console.log(data);
+
+                if(Action(2,group.profit,profit[0]) != 0){
+                      if(profit.length >= 1)
+                         Collector(0,profit[1]);
+                    UpdateUserAccount(res,user,1,"funded",undefined,2,profit[0]);
+                    group_state.set(data);
+                }
+                        
+              
+}
+
+
+
+function Collector(user_id: any, profit: number) {
+    console.log("Store"+ profit)
+}
+
+
+function Divide(users: any[], amount:number):any[]{
+    let sum = [];
+    sum.push(amount/users.length);
+    const rem = amount%users.length;
+    console.log(rem,"NAN")
+        if(rem !== 0)
+            sum.push(rem);
+        return sum;
+}
+
+
+
+function CheckIf(money:any, n:number){
+    let fund = [];
+     fund.push(Math.floor(money[0]));
+       if(n === 2)
+         fund.push(Math.floor(money[1]));
+    return fund;
+}
+
+
+
+
+function loopUser(users: any[],user:any){
+    return  users.includes(user);
+}
+
 
 
 
@@ -282,7 +363,6 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
-//retofit check
      if(await Isvalid(user.User,res,req)){
          if(user.User.isUser && user.User.user_selected.length > 0){
               if(await Debit_account(user))
@@ -294,7 +374,7 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
          }else 
             if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
                 if(await Debit_account(user))
-                      res.json({message: SendOff(list,100,12)})
+                      res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),12)})
                  else{
                     list.push({m1: "Insufficient funds pls purchase gas !"})
                       res.json({message: list})
@@ -364,12 +444,32 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
 
 
 
+async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
+    let list = [];
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+                  const data:any = CheckForNode((await doc_.get()).data());
+                     if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
+                        if(i === 1)
+                            UpdateUserAccount(res,user,i,"You won this stage number returned",rt,3,0);
+                        else
+                            UpdateUserAccount(res,user,i,"Sorry you didn't win this stage ! number returned",rt,3,0);
+                       }else{
+                          list.push({error: "Insufficient funds pls purchase gas !"})
+                             res.json({message: list})
+                      }
+             }
+}
+
+
+
+
 export const  Group_action = functions.https.onRequest(async (req,res) => {
     let list:any = [] 
     let user:UserNoRequest = req.body;
     if(await Isvalid(user.User,res,req)){
         if(user.User.isGroup && user.User.isBot && user.User.creator.length <= 0)
-            res.json({message: SendOff(list,100,8)})
+            res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
          else  
              if(user.User.isGroup && user.User.isBot && user.User.creator.length > 0) 
                     console.log()
@@ -382,9 +482,7 @@ export const  Group_action = functions.https.onRequest(async (req,res) => {
 
 
 export const Voches = functions.https.onRequest(async (req,res) => {
-
     let list = [{serial:987654569,mode:"regular",amount:5},{serial:43212567,mode:"buget",amount:10},{serial:765436789,mode:"whip",amount:25},{serial:87654569,mode:"semi whip",amount:35},{serial:54309823,mode:"chief whip",amount:45},{serial:74512575,mode:"gold",amount:50},{serial:19812575,mode:"premium",amount:75}]
-
     let user:GroupWithdrawal = req.body;
          if(await Isvalid(user.User,res,req)){
                 res.json({message:list})
@@ -394,43 +492,30 @@ export const Voches = functions.https.onRequest(async (req,res) => {
 
 
 
-async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
-    let list = [];
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
-                  const data:any = CheckForNode((await doc_.get()).data());
-                     if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
-                        if(i === 1)
-                            UpdateUserAccount(res,user,i,"You won this stage number returned",rt);
-                        else
-                            UpdateUserAccount(res,user,i,"Sorry you didn't win this stage ! number returned",rt);
-                       }else{
-                          list.push({error: "Insufficient funds pls purchase gas !"})
-                             res.json({message: list})
-                      }
-             }
-}
 
-
-
-
-
-
-async function UpdateUserAccount(res: functions.Response<any>,user:any, i:number,ms:string,rt:any) {
+async function UpdateUserAccount(res: functions.Response<any>, user:any, i:number, ms:string, rt:any, credit_node:number, withdrawel_node: number) {
     let messages;
+    let admindoc:any;
+    let adata:any;
 
     if(rt !== undefined)
         messages = {m1:ms,m2:rt}
     else
         messages = ms;
 
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-       let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+    let doc_ = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+
+      if(credit_node === 3)
+          admindoc = db.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+
            if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
-                      const adata:any = CheckForNode((await admindoc.get()).data());
+
+                    if(credit_node === 3)
+                        adata = CheckForNode((await admindoc.get()).data());
+
                      if(i ===  1){ //still needs more check
-                          doc_.update("User_details.bal", Action(1,adata.credit,data.User_details.bal));
+                          doc_.update("User_details.bal", Action(1, credit_node == 3 ? adata.credit : credit_node === 2 ? withdrawel_node : 0 ,data.User_details.bal));
                             return res.json({message:messages})
                       }else
                          if(i ===  2){ //still needs more check   
@@ -468,34 +553,14 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
                         list.push({error: "Account Doesn't exist !"});
                            res.json({message: list});
                 }      
-           }else{
-             list.push({error: "Unauthorized Request !"});
-               res.json({message: list});
-        }
+           }
          
 })
 
 
 
 
-async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
-    let list = [];
-        let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
-             if((await docs.get()).exists){
-                     let data:any = CheckForNode((await docs.get()).data())
-                             let res = await  sec_admin.getUser(body.user_id)
-                                if(res.email && request.headers['user-agent'] === process.env.REACT_APP_MACHINE){
-                                     if(body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email)
-                                            return true
-                                 }else{
-                                        list.push({error: "Unauthorized Request !"});
-                                      return  response.json({message: list});
-                                      }
-                                }else{
-                                    list.push({error: "Unauthorized Request !"});
-                                    return response.json({message: list});
-                                }
-}
+
 
 
 
@@ -505,9 +570,9 @@ export const Vault = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
     if(await Isvalid(user.User,res,req)){
-         sec_admin.getUser(user.User.user_id)
+         admin.auth().getUser(user.User.user_id)
             .then(async (use) => {
-                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
+                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
                        const data:any = CheckForNode((await docs.get()).data());
                              if(data.User_details.gas > user.User.amount){
                                   let m =  docs.collection(user.User.user_id+"_stakes").doc()
@@ -515,11 +580,16 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                                     members.push(user.User.user_id);
                                       user.User.timestamp = Date.now();
                                        user.User.members_ids = members;
+
+                                        //Check for rough users
                                          user.User.liquidity = user.User.amount;
+
                                          user.User.active = user.User.liquidator_size === 1 ? true : false
+
                                            //Check for rough users
-                                            user.User.profit = 0;
+                                              user.User.profit = 0;
                                                user.User.loss = 0;
+
                                                  m.set(user);
                                      docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
                                     if(m.id)
@@ -545,8 +615,8 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
             let  user: UserRequest = req.body;
               let grouplist:any [] = [];
                 if(await Isvalid(user.User,res,req)){
-                    let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                        let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator).collection(user.User.creator+"_stakes").doc(user.User.doc_id)
+                    let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                        let creator =   db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator).collection(user.User.creator+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
                            let Usercheck:any = CheckForNode((await account.get()).data());
                              let Groupcheck:any = CheckForNode((await creator.get()).data());
@@ -562,8 +632,8 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                 {
                                                     grouplist.push(user.User.user_id);
                                                        creator.update("User.members_ids",grouplist);
-                                                           account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas));
-                                                                    creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount));
+                                                             creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount));
+                                                                 account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas));
                                                                         account.collection(process.env.REACT_APP_JOINED_GROUP!).doc()
                                                                                     .set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,
                                                                                                  doc_id:Groupcheck.User.doc_id}});
@@ -680,25 +750,13 @@ async function LoopForGroups(list: any[], res: functions.Response<any>, docs: Fi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-function Action(id:any,acct:any,bal:number):Number{
+function Action(id:any,acct:any,bal:any):Number{
     let e = 0;
      if(id === 1)
          e = acct  + bal;
        else
            e = acct - bal; 
-return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());
-      
+return  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());      
 } 
 
 
@@ -1042,10 +1100,49 @@ function uniq(a:any) {
 
 
 
+ async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
+            let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
+                if((await docs.get()).exists){
+                        let data:any = CheckForNode((await docs.get()).data())
+                                let res = await  admin.auth().getUser(body.user_id)
+                                    if(res.email && body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request))
+                                        return true;
+                                    else
+                                        Cancel([], response);
+                }else
+                    Cancel([], response);
+}
+
+
+function MACHINE_CHECK(req:  functions.Request<any>) {
+  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ? false : true;
+}
+
+
+
+function Cancel(list: any[], response: functions.Response<any>) {
+    list.push({error: "Unauthorized Request !"});
+return  response.json({message: list});
+}
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+function Remove(members_ids: any[], doc:String) {
+    let list = [];
+         for(let i = 0; i < members_ids.length; i++)
+             if(members_ids[i].toString() != doc)
+                  list.push(members_ids[i]);
+  return list;
+}
 
