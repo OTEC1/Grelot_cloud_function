@@ -257,38 +257,64 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 
-
+//call the drop endpoint
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
     //    if(await Isvalid(user.User,res,req)){
-               let  account =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
+               let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
                  if((await account.get()).exists){
                         let m:any = CheckForNode((await account.get()).data());
                             let group:any = db.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id);
-                                let filter:any = CheckForNode((await group.get()).data()); //Action(2,group.profit,profit[0])
-                                if(Divide(filter.User.members_ids,filter.User.profit)[0] != 0){
-                                        if(loopUser(filter.User.members_ids, user.User.user_id))
-                                            SendOutFunds(CheckIf(Divide(filter.User.members_ids, filter.User.profit), Divide(filter.User.members_ids, filter.User.profit).length >= 1 ? 2 : 1), filter.User,user,res,group);
-                                        else
-                                            res.json({message: "You are not a valid member !"}) // run warning script
-                                   }else    
-                                      res.json({message: "Insufficient group liquidity at this time !"}) 
-                        }else
+                                let filter:any = CheckForNode((await group.get()).data()); 
+                                        RunFun(filter,user,group,account,res);
+                         }else
                               res.json({message: "Invalid request"}) // run warning script
 
                     //}
                 }
-                    
-
 )
 
 
 
 
-function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) {
+export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) => {
+    try{
+         let user:GroupCreation = req.body;
+          if(await Isvalid(user.User,res,req)){
+              let group_node = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(user.User.user_id+"_stakes").doc(user.User.doc_id);
+                 if((await group_node.get()).exists){
+                    let m:any = CheckForNode((await group_node.get()).data());
+                            if(m.User.members_ids[0].toString() === user.User.user_id)
+                                  RunFun(m,user,group_node,null,res);
+                  }else
+                       res.json({message: "Group doesn't exist"}) // run warning script
+                }
+      }catch(err ){
+          res.json({message: err as Error})
+      }
+})
+
+
+
+function RunFun(filter: any, user: any, group:any,account:any, res:functions.Response<any>) {
+    if(Divide(filter.User.members_ids,filter.User.profit)[0] != 0){
+        if(loopUser(filter.User.members_ids, user.User.user_id))
+            SendOutFunds(CheckIf(Divide(filter.User.members_ids, filter.User.profit), Divide(filter.User.members_ids, filter.User.profit).length >= 1 ? 2 : 1), filter.User,user,res,group,account,1);    
+          else
+            res.json({message: "You are not a valid member !"}) // run warning script
+     }else { 
+         SendOutFunds([],filter.User,user,res,group,account,2);
+            res.json({message: "Insufficient group liquidity at this time left anyway !"}) 
+   }
+}
+
+
+
+
+function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,account:any, init:number) {
     
     //check if group.members_ids.length <= 0  ? run script : continue flow
-    console.log(profit);
+   
 
     let data = {User:{
                      members_ids: Remove(group.members_ids,user.User.user_id), 
@@ -301,7 +327,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                      miner_stake: group.miner_stake,
                      timestamp: group.timestamp,
                      doc_id: group.doc_id,
-                     profit: Action(2,group.profit,profit[0]),
+                     profit: init !== 2 ? Action(2,group.profit,profit[0]) : 0,
                      loss: group.loss,
                      liquidity: group.liquidity,
                      active: group.active,
@@ -312,11 +338,17 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                 console.log(data);
 
                 if(Action(2,group.profit,profit[0]) != 0){
-                      if(profit.length >= 1)
+                     if(profit.length >= 1 && profit[1] !== NaN && profit[1] !== undefined)
                          Collector(0,profit[1]);
-                    UpdateUserAccount(res,user,1,"funded",undefined,2,profit[0]);
-                    group_state.set(data);
-                }
+                     //check for user account funder (i.e) app or group 
+                     //also check for for crediting or debiting or zero group funds at request time.    
+                    UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
+                  }
+               
+                group_state.set(data);
+                if(account !== null)
+                    account.delete(); 
+
                         
               
 }
@@ -331,9 +363,8 @@ function Collector(user_id: any, profit: number) {
 function Divide(users: any[], amount:number):any[]{
     let sum = [];
     sum.push(amount/users.length);
-    const rem = amount%users.length;
-    console.log(rem,"NAN")
-        if(rem !== 0)
+    let  rem = amount%users.length;
+       if(rem.toString() !== "0")
             sum.push(rem);
         return sum;
 }
@@ -343,7 +374,7 @@ function Divide(users: any[], amount:number):any[]{
 function CheckIf(money:any, n:number){
     let fund = [];
      fund.push(Math.floor(money[0]));
-       if(n === 2)
+       if(n === 2 && money[1] !== NaN && money[1] !== undefined)
          fund.push(Math.floor(money[1]));
     return fund;
 }
@@ -515,11 +546,13 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
                         adata = CheckForNode((await admindoc.get()).data());
 
                      if(i ===  1){ //still needs more check
+                           //check if its for app call or withrawal call for debiting
                           doc_.update("User_details.bal", Action(1, credit_node == 3 ? adata.credit : credit_node === 2 ? withdrawel_node : 0 ,data.User_details.bal));
                             return res.json({message:messages})
                       }else
                          if(i ===  2){ //still needs more check   
-                            doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
+                            //check if its for app call or group call for crediting
+                            doc_.update("User_details.gas",  credit_node !== 4 ?  Action(2,adata.debit,data.User_details.gas) : Action(1,withdrawel_node,data.User_details.gas));
                               return res.json({message:messages})
                           }
                      }else 
@@ -566,7 +599,7 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
 
 
 
-export const Vault = functions.https.onRequest(async (req,res) => {
+export const GroupCreate = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
     if(await Isvalid(user.User,res,req)){
@@ -577,7 +610,7 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                              if(data.User_details.gas > user.User.amount){
                                   let m =  docs.collection(user.User.user_id+"_stakes").doc()
                                   user.User.doc_id = m.id;
-                                    members.push(user.User.user_id);
+                                    members.unshift(user.User.user_id);
                                       user.User.timestamp = Date.now();
                                        user.User.members_ids = members;
 
@@ -592,10 +625,11 @@ export const Vault = functions.https.onRequest(async (req,res) => {
 
                                                  m.set(user);
                                      docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas))
-                                    if(m.id)
-                                        res.json({message: `Group ${user.User.groupName} created`})
-                                    else
-                                        res.json({message: `Group ${user.User.groupName} creation failed !`})
+
+                                        if(m.id)
+                                            res.json({message: `Group ${user.User.groupName} created`})
+                                        else
+                                            res.json({message: `Group ${user.User.groupName} creation failed !`})
 
                                   }else
                                      res.json({message: "Insufficient funds pls purchase gas !"})
@@ -605,6 +639,9 @@ export const Vault = functions.https.onRequest(async (req,res) => {
                 })
         }    
 })
+
+
+
 
 
 
@@ -634,9 +671,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                        creator.update("User.members_ids",grouplist);
                                                              creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount));
                                                                  account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas));
-                                                                        account.collection(process.env.REACT_APP_JOINED_GROUP!).doc()
-                                                                                    .set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,
-                                                                                                 doc_id:Groupcheck.User.doc_id}});
+                                                                        account.collection(process.env.REACT_APP_JOINED_GROUP!).doc().set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,doc_id:Groupcheck.User.doc_id}});
                                                                                  if(Groupcheck.User.liquidator_size === grouplist.length)
                                                                                        creator.update("User.active",true);    
                                                                          res.json({message:"You have been accepted"});           
@@ -1145,4 +1180,6 @@ function Remove(members_ids: any[], doc:String) {
                   list.push(members_ids[i]);
   return list;
 }
+
+
 
