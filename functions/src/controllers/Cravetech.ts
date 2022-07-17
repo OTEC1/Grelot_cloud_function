@@ -257,10 +257,10 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 
-//call the drop endpoint
+
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
-    //    if(await Isvalid(user.User,res,req)){
+         if(await Isvalid(user.User,res,req)){
                let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
                  if((await account.get()).exists){
                         let m:any = CheckForNode((await account.get()).data());
@@ -270,7 +270,7 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                          }else
                               res.json({message: "Invalid request"}) // run warning script
 
-                    //}
+                    }
                 }
 )
 
@@ -285,12 +285,14 @@ export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) =>
                  if((await group_node.get()).exists){
                     let m:any = CheckForNode((await group_node.get()).data());
                             if(m.User.members_ids[0].toString() === user.User.user_id)
-                                  RunFun(m,user,group_node,null,res);
+                                  RunFun(m,user,group_node, m.User.members_ids.length <= 0  ?  group_node : null, res);
+                            else
+                               res.json({message: "Permission denied !"}) // run warning script
                   }else
                        res.json({message: "Group doesn't exist"}) // run warning script
                 }
       }catch(err ){
-          res.json({message: err as Error})
+           res.json({message: err as Error})
       }
 })
 
@@ -310,44 +312,51 @@ function RunFun(filter: any, user: any, group:any,account:any, res:functions.Res
 
 
 
-
+//Test/////////////////////////////////////////////////---------------------
 function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,account:any, init:number) {
     
     //check if group.members_ids.length <= 0  ? run script : continue flow
    
 
-    let data = {User:{
-                     members_ids: Remove(group.members_ids,user.User.user_id), 
-                     email:group.email,
-                     IMEI:group.IMEI,
-                     user_id:group.user_id,
-                     groupName: group.groupName,
-                     amount: group.amount,
-                     liquidator_size: group.members_ids.length -1, 
-                     miner_stake: group.miner_stake,
-                     timestamp: group.timestamp,
-                     doc_id: group.doc_id,
-                     profit: init !== 2 ? Action(2,group.profit,profit[0]) : 0,
-                     loss: group.loss,
-                     liquidity: group.liquidity,
-                     active: group.active,
-                     odd: group.odd
+    let data = { User:
+                    {
+                        members_ids: Remove(group.members_ids,user.User.user_id), 
+                        email:group.email,
+                        IMEI:group.IMEI,
+                        user_id:group.user_id,
+                        groupName: group.groupName,
+                        amount: group.amount,
+                        liquidator_size: group.members_ids.length -1, 
+                        miner_stake: group.miner_stake,
+                        timestamp: group.timestamp,
+                        doc_id: group.doc_id,
+                        profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0])) : 0,
+                        loss: group.loss,
+                        liquidity: group.liquidity,
+                        active: group.active,
+                        odd: group.odd
                      }
                    };
 
-                console.log(data);
+               
 
-                if(Action(2,group.profit,profit[0]) != 0){
+                if(Action(2,group.profit,profit[0]) !== 0){
                      if(profit.length >= 1 && profit[1] !== NaN && profit[1] !== undefined)
                          Collector(0,profit[1]);
-                     //check for user account funder (i.e) app or group 
-                     //also check for for crediting or debiting or zero group funds at request time.    
-                    UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
-                  }
-               
-                group_state.set(data);
-                if(account !== null)
-                    account.delete(); 
+                        //check for user account funder (i.e) app or group 
+                        //also check for for crediting or debiting or zero group funds at request time.    
+                        UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
+                   }
+                    else
+                         if(group.members_ids.length  === 1 &&  group.profit > 0)
+                            //check for user account funder (i.e) app or group 
+                              //also check for for crediting or debiting or zero group funds at request time.    
+                               UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
+                    
+                      if(account !== null && data.User.members_ids.length <= 0)
+                            account.delete(); 
+                       else
+                            group_state.set(data);
 
                         
               
@@ -785,7 +794,7 @@ async function LoopForGroups(list: any[], res: functions.Response<any>, docs: Fi
 
 
 
-function Action(id:any,acct:any,bal:any):Number{
+function Action(id:any,acct:any,bal:any):number{
     let e = 0;
      if(id === 1)
          e = acct  + bal;
