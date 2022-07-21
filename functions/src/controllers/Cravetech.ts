@@ -258,6 +258,23 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 
+
+function RunFun(filter:any, user:any, group:any, account:any, res:functions.Response<any>, doc: any) {
+
+    if(loopUser(filter.User.members_ids, user.User.user_id)){
+           if(Divide(filter.User.members_ids,filter.User.profit)[0] != 0)
+                SendOutFunds(CheckIf(Divide(filter.User.members_ids, filter.User.profit), Divide(filter.User.members_ids, filter.User.profit).length >= 1 ? 2 : 1), filter.User,user,res,group,account,1,doc);    
+          else{
+                SendOutFunds([],filter.User,user,res,group,account,2,doc);
+                res.json({message: "Insufficient group liquidity at this time left anyway !"}); 
+          }
+     }else 
+            res.json({message: "You are not a valid member !"}); // run warning script
+
+}
+
+
+
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
          if(await Isvalid(user.User,res,req)){
@@ -266,12 +283,12 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                         let m:any = CheckForNode((await account.get()).data());
                             let group:any = db.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id);
                                 let filter:any = CheckForNode((await group.get()).data()); 
-                                        RunFun(filter,user,group,account,res);
+                                        RunFun(filter,user,group,account,res,m.User.doc_id);
                          }else
                               res.json({message: "Invalid request"}) // run warning script
 
-                    }
                 }
+        }
 )
 
 
@@ -285,7 +302,7 @@ export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) =>
                  if((await group_node.get()).exists){
                     let m:any = CheckForNode((await group_node.get()).data());
                             if(m.User.members_ids[0].toString() === user.User.user_id)
-                                  RunFun(m,user,group_node, m.User.members_ids.length <= 0  ?  group_node : null, res);
+                                  RunFun(m,user,group_node, m.User.members_ids.length <= 0  ?  group_node : null, res,null);
                             else
                                res.json({message: "Permission denied !"}) // run warning script
                   }else
@@ -298,70 +315,72 @@ export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) =>
 
 
 
-function RunFun(filter: any, user: any, group:any,account:any, res:functions.Response<any>) {
-    if(Divide(filter.User.members_ids,filter.User.profit)[0] != 0){
-        if(loopUser(filter.User.members_ids, user.User.user_id))
-            SendOutFunds(CheckIf(Divide(filter.User.members_ids, filter.User.profit), Divide(filter.User.members_ids, filter.User.profit).length >= 1 ? 2 : 1), filter.User,user,res,group,account,1);    
-          else
-            res.json({message: "You are not a valid member !"}) // run warning script
-     }else { 
-         SendOutFunds([],filter.User,user,res,group,account,2);
-            res.json({message: "Insufficient group liquidity at this time left anyway !"}) 
-   }
-}
 
 
 
-//Test/////////////////////////////////////////////////---------------------
-function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,account:any, init:number) {
-    
-    //check if group.members_ids.length <= 0  ? run script : continue flow
-   
 
-    let data = { User:
-                    {
-                        members_ids: Remove(group.members_ids,user.User.user_id), 
-                        email:group.email,
-                        IMEI:group.IMEI,
-                        user_id:group.user_id,
-                        groupName: group.groupName,
-                        amount: group.amount,
-                        liquidator_size: group.members_ids.length -1, 
-                        miner_stake: group.miner_stake,
-                        timestamp: group.timestamp,
-                        doc_id: group.doc_id,
-                        profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0])) : 0,
-                        loss: group.loss,
-                        liquidity: group.liquidity,
-                        active: group.active,
-                        odd: group.odd
-                     }
-                   };
 
-               
+function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,account:any, init:number, doc_node:any) {
+    //check if group.members_ids.length <= 0  ? run script : continue flow           
 
                 if(Action(2,group.profit,profit[0]) !== 0){
                      if(profit.length >= 1 && profit[1] !== NaN && profit[1] !== undefined)
                          Collector(0,profit[1]);
-                        //check for user account funder (i.e) app or group 
-                        //also check for for crediting or debiting or zero group funds at request time.    
-                        UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
+                          //check for user account funder (i.e) app or group 
+                            //also check for for crediting or debiting or zero group funds at request time.    
+                        UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0]+group.amount : group.amount);
                    }
                     else
-                         if(group.members_ids.length  === 1 &&  group.profit > 0)
-                            //check for user account funder (i.e) app or group 
-                              //also check for for crediting or debiting or zero group funds at request time.    
-                               UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0] : group.amount);
-                    
-                      if(account !== null && data.User.members_ids.length <= 0)
-                            account.delete(); 
-                       else
-                            group_state.set(data);
+                         if(group.members_ids.length  === 1 &&  group.profit > 0)   
+                               UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 2 : 4 ,init !== 2 ? profit[0]+group.amount  : group.amount);
+                               //check for user account funder (i.e) app or group 
+                              //also check for for crediting or debiting or zero group funds at request time. 
 
-                        
-              
+
+                       group_state.update({User:{
+                                    members_ids: Remove(group.members_ids,user.User.user_id), 
+                                    email:group.email,
+                                    IMEI:group.IMEI,
+                                    user_id:group.user_id,
+                                    groupName: group.groupName,
+                                    amount: group.amount,
+                                    liquidator_size: group.members_ids.length -1, 
+                                    miner_stake: group.miner_stake,
+                                    timestamp: group.timestamp,
+                                    doc_id: group.doc_id,
+                                    profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0])) : 0,
+                                    loss: group.loss,
+                                    liquidity: Action(2,group.liquidity,group.amount),
+                                    active: group.active,
+                                    odd: group.odd
+                                 }});  
+
+                                 if(account !== null)
+                                      account.delete(); 
+                                
+                                 UpdateUsersNodes(Remove(group.members_ids,user.User.user_id),doc_node);
+                                
+                                 
+                                 
 }
 
+
+
+
+
+async function UpdateUsersNodes(members: any[], user:any){
+    if(user !== null)
+        for(let i =0; i < members.length; i++){ 
+            let e:string = members[i];
+             let soc = db.collection(process.env.REACT_APP_USER_DB!).doc(e).collection(process.env.REACT_APP_JOINED_GROUP!);
+             let snapshot = await soc.where('User.doc_id', "==", user).get();
+                if(!snapshot.empty){
+                    snapshot.forEach((doc) =>{
+                        db.collection(process.env.REACT_APP_USER_DB!).doc(e).collection(process.env.REACT_APP_JOINED_GROUP!).doc(doc.id)
+                            .update("User.members_ids",members)
+                    
+                    })}}
+}
 
 
 function Collector(user_id: any, profit: number) {
@@ -369,22 +388,25 @@ function Collector(user_id: any, profit: number) {
 }
 
 
+
+
 function Divide(users: any[], amount:number):any[]{
     let sum = [];
-    sum.push(amount/users.length);
+    sum.push(Math.floor(amount/users.length));
     let  rem = amount%users.length;
        if(rem.toString() !== "0")
-            sum.push(rem);
+            sum.push(Math.floor(rem));
         return sum;
 }
 
 
 
+
 function CheckIf(money:any, n:number){
     let fund = [];
-     fund.push(Math.floor(money[0]));
+     fund.push(money[0]);
        if(n === 2 && money[1] !== NaN && money[1] !== undefined)
-         fund.push(Math.floor(money[1]));
+         fund.push(money[1]);
     return fund;
 }
 
@@ -1182,7 +1204,7 @@ return  response.json({message: list});
 
 
 
-function Remove(members_ids: any[], doc:String) {
+function Remove(members_ids: any[], doc:String):any [] {
     let list = [];
          for(let i = 0; i < members_ids.length; i++)
              if(members_ids[i].toString() != doc)
