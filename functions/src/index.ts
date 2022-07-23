@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
 import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, DynamicpostRenderPost,VendorInvest, GetVendorInvest} from "./controllers/Grelot";
-import {AuthUserSession,RegisterNewUser,AuthUserRequest,AuthUserRequestSize,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,ViewGroup,LoadActiveGroup,LoadInactiveGroup, Group_action, User_action,Voches, Group_Creator_Cancel,Purchase_voches} from './controllers/Cravetech';
+import {AuthUserSession,RegisterNewUser,AuthUserRequest,AuthUserRequestSize,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,ViewGroup,LoadActiveGroup,LoadInactiveGroup, Group_action, User_action,Voches, Group_Creator_Cancel,Purchase_voches,ExchangeFunds} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp} from "./controllers/Noman";
 import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
 import { Registeruser } from "./controllers/Monclaris";
@@ -33,6 +33,7 @@ Cravetech.post("/bot_mine",Group_action);
 Cravetech.post("/user_mine",User_action);
 Cravetech.post("/Voches",Voches);
 Cravetech.post("/Purchase_voches",Purchase_voches);
+Cravetech.post("/ExchangeFunds",ExchangeFunds);
 Cravetech.post("/Group_Creator_Cancel",Group_Creator_Cancel);
 
 
