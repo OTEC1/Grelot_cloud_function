@@ -234,21 +234,33 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) =>{
         let user:Withdrawals = req.body;
           if(await Isvalid(user.User,res,req)){
 
-                    let count = 0;
-                    let store = 0;
-                    for(let m = 0; m < user.User.amount; m++){
-                        count ++;
-                            if(count >= 10){      
-                                store = store+1;
-                                  count = 0;
-                            }
-                            
-                            if(m === user.User.amount-1){
-                                    store = user.User.amount%2 >= 5 ? store+5 : store+1
-                                res.json({message: store})   
-                            }
-                            
-                        }}});
+                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!)
+                                   .doc(user.User.user_id);
+                        
+                                if((await user_node.get()).exists){
+                                     let m:any = CheckForNode((await user_node.get()).data());
+                                            if(m.User_details.bal > user.User.amount){
+                                                let count = 0;
+                                                let store = 0;
+                                                let amount = user.User.amount;
+                                                    for(let m = 0; m < user.User.amount; m++){
+                                                        count ++;
+                                                            if(count >= 10){      
+                                                                store += 1;
+                                                                amount -= 10;
+                                                                count = 0;
+                                                            }
+                                                            
+                                                            if(m === user.User.amount-1){
+                                                                    store = amount >= 5 ? store+1 : store+0
+                                                                    res.json({message: store})   
+                                                            }
+                                                        }
+                                            } else
+                                                  res.json({message: "Your balance is not enough !" });
+                                            
+                                   }
+                    }});
 
 
 
