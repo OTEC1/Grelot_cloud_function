@@ -1,7 +1,8 @@
 import * as functions from 'firebase-functions'
 import {db, db_sec, admin, sec_admin} from '../config/firebase' 
-import axios from "axios";
+import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
+import axios from "axios";
 require('dotenv').config()
 
 
@@ -14,6 +15,7 @@ type Register = {
         password:any,
         avatar:number,
         UserCategory:any, 
+        timeStamp:number,
     },
     User_details:{
         bankSelected:string, 
@@ -21,7 +23,13 @@ type Register = {
         bal:number,
         gas:number,
         bankAccountNo:string
-     }
+     },
+     User_locations:{
+        user_ip: string,
+        country_code: string,
+        country_city: string, 
+        country_name: string
+    }
 }
 
 
@@ -153,15 +161,16 @@ type Qs = {
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
+      
           if(MACHINE_CHECK(req)){
                  let user: Register = req.body
-                      admin.auth().createUser({ 
+                      sec_admin.createUser({ 
                                     email: user.User.email,  
                                     emailVerified:false,
                                     password:user.User.password,
                                     disabled:false,
                                 }).then(async (useRecord) => {
-
+                                        
                                     user.User.password = "N/A";
                                     user.User.user_id = useRecord.uid;
                                     //Check for rough users
@@ -170,8 +179,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     user.User.IMEI = uuid()+"_"+ Date.now()
 
                                     let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;
-                                    //let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
-                                    if(doc)
+                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
+                                    if(doc && doc_sec)
                                           return  res.json({message: "Account created"})
                                     else
                                            return res.json({message: "Account wasn't created !"})
@@ -186,6 +195,78 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                     res.json({ message: err as Error})
          }
 })
+
+
+
+
+export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
+        let user: GroupWithdrawal = req.body;
+               sec_admin.verifyIdToken(user.User.user_id)
+                   .then(async (resP) => {
+
+                        let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(resP.uid);
+                          if((await user_node.get()).exists){
+                             let m:any = CheckForNode((await user_node.get()).data());
+                               res.json({message:m.User})
+                          }
+                          else
+                                console.log("None",resP);  
+                         }).catch(err => {
+
+                            sec_admin.getUserByEmail(user.User.email)
+                                .then((re) => {
+
+                                  const actionCode = {url: 'http://localhost:3000',handleCodeInApp: true,};
+                                   
+                                   sec_admin.generateSignInWithEmailLink(re.email!,actionCode)
+                                     .then((responese) => {
+                                        let errand;
+
+                                        var smtpConfig = {
+                                            host: process.env.HOST,
+                                            port: 465,
+                                            secure: true, 
+                                                auth: {
+                                                    user: process.env.USER,
+                                                    pass: process.env.PASSWORD
+                                                }
+                                        };
+                                            
+
+                                        const transport = nodemailer.createTransport(smtpConfig);
+                                    
+                                        var mailOptions = {
+                                        from: process.env.USER,
+                                        to:re.email,
+                                        subject:"dimetTrade Sign in Link",
+                                        text: responese.toString(),
+                                        };
+                        
+                                       transport.sendMail(mailOptions,function(error, info){
+                                            if (error) {
+                                                errand = error.toString();
+                                            } else {
+                                                errand = 'Email sent: ' + info.response;
+                                            }
+                                                res.json({message: errand})
+                                            })
+                                
+                                }).catch(err => {
+                                        res.json({message: {e1:err as Error,e2:"A"}})
+                            })
+                       }).catch((err) => {
+                        res.json({message:"Account doesn't exist !"})
+                     })
+                    
+        })
+})
+
+
+
+
+function Admin (){
+    return admin.auth();
+}
 
 
 
@@ -230,13 +311,10 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 
 
 
-export const ExchangeFunds = functions.https.onRequest(async (req,res) =>{
+export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
         let user:Withdrawals = req.body;
           if(await Isvalid(user.User,res,req)){
-
-                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!)
-                                   .doc(user.User.user_id);
-                        
+                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
                                 if((await user_node.get()).exists){
                                      let m:any = CheckForNode((await user_node.get()).data());
                                             if(m.User_details.bal > user.User.amount){
@@ -252,12 +330,12 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) =>{
                                                             }
                                                             
                                                             if(m === user.User.amount-1){
-                                                                    store = amount >= 5 ? store+1 : store+0
+                                                                    store = amount >= 5 ? store+1 : store+.5
                                                                     res.json({message: store})   
                                                             }
                                                         }
                                             } else
-                                                  res.json({message: "Your balance is not enough !" });
+                                                  res.json({message: "Insufficient funds !"});
                                             
                                    }
                     }});
@@ -386,7 +464,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                               //also check for for crediting or debiting or zero group funds at request time. 
 
 
-                       group_state.update({User:{
+                         group_state.update({User:{
                                     members_ids: Remove(group.members_ids,user.User.user_id), 
                                     email:group.email,
                                     IMEI:group.IMEI,
@@ -1253,7 +1331,7 @@ function uniq(a:any) {
 
 
 function MACHINE_CHECK(req:  functions.Request<any>) {
-  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ? false : true;
+  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
 }
 
 
