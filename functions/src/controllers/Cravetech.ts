@@ -3,6 +3,7 @@ import {db, db_sec, admin, sec_admin} from '../config/firebase'
 import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
+import { messaging } from 'firebase-admin';
 require('dotenv').config()
 
 
@@ -161,7 +162,6 @@ type Qs = {
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
     try{
-      
           if(MACHINE_CHECK(req)){
                  let user: Register = req.body
                       sec_admin.createUser({ 
@@ -178,12 +178,12 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                     user.User_details.gas = 0;
                                     user.User.IMEI = uuid()+"_"+ Date.now()
 
-                                    let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;
-                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.uid).set(user)).writeTime;;
+                                    let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
+                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;;
                                     if(doc && doc_sec)
-                                          return  res.json({message: "Account created"})
+                                        return res.json({message: "Account created"})
                                     else
-                                           return res.json({message: "Account wasn't created !"})
+                                        return res.json({message: "Account wasn't created !"});
 
                                     }).catch((err => {
                                         return  res.json({message: err as Error })
@@ -201,64 +201,62 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
 
 export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
         let user: GroupWithdrawal = req.body;
-               sec_admin.verifyIdToken(user.User.user_id)
-                   .then(async (resP) => {
+         let user_node = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+            if((await user_node.get()).exists){
 
-                        let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(resP.uid);
-                          if((await user_node.get()).exists){
-                             let m:any = CheckForNode((await user_node.get()).data());
-                               res.json({message:m.User})
-                          }
-                          else
-                                console.log("None",resP);  
-                         }).catch(err => {
+                sec_admin.verifyIdToken(user.User.user_id)
+                  .then(async (resP) => {
 
-                            sec_admin.getUserByEmail(user.User.email)
-                                .then((re) => {
+                       let m:any = CheckForNode((await user_node.get()).data());
+                            res.json({message:m.User});
 
-                                  const actionCode = {url: 'http://localhost:3000',handleCodeInApp: true,};
-                                   
-                                   sec_admin.generateSignInWithEmailLink(re.email!,actionCode)
-                                     .then((responese) => {
-                                        let errand;
+                           }).catch(err => {
 
-                                        var smtpConfig = {
-                                            host: process.env.HOST,
-                                            port: 465,
-                                            secure: true, 
-                                                auth: {
-                                                    user: process.env.USER,
-                                                    pass: process.env.PASSWORD
-                                                }
-                                        };
-                                            
+                            const actionCode = {url:'http://localhost:3000',handleCodeInApp: true,};  
 
-                                        const transport = nodemailer.createTransport(smtpConfig);
+                                sec_admin.generateSignInWithEmailLink(user.User.email!,actionCode)
+                                  .then((responese) => {
+                                    let errand;
+       
+                                    var smtpConfig = {
+                                        host: process.env.HOST,
+                                        port: 465,
+                                        secure: true, 
+                                        auth: {
+                                            user: process.env.USER,
+                                            pass: process.env.PASSWORD
+                                    }};
                                     
-                                        var mailOptions = {
-                                        from: process.env.USER,
-                                        to:re.email,
-                                        subject:"dimetTrade Sign in Link",
-                                        text: responese.toString(),
-                                        };
+                                const transport = nodemailer.createTransport(smtpConfig);
+                            
+                                var mailOptions = {
+                                    from: process.env.USER,
+                                    to: user.User.email,
+                                    subject:"dimetTrade SignIn Link",
+                                    text: responese.toString(),
+                                };
+                
+                                transport.sendMail(mailOptions,function(error, info){
+                                       if (error) 
+                                           errand = error.toString();
+                                       else 
+                                           errand = 'Email sent: ' + info.response;
+                                     res.json({message: errand})
+                                    })
                         
-                                       transport.sendMail(mailOptions,function(error, info){
-                                            if (error) {
-                                                errand = error.toString();
-                                            } else {
-                                                errand = 'Email sent: ' + info.response;
-                                            }
-                                                res.json({message: errand})
-                                            })
-                                
-                                }).catch(err => {
-                                        res.json({message: {e1:err as Error,e2:"A"}})
-                            })
-                       }).catch((err) => {
-                        res.json({message:"Account doesn't exist !"})
-                     })
-                    
-        })
+                            }).catch(err => {
+                                res.json({message: err as Error})
+                           })
+                        })
+                }else { 
+                    sec_admin.getUserByEmail(user.User.email)
+                         .then(use => {
+                                sec_admin.deleteUser(use.uid)
+                                    .then(() =>  res.json({message:"Account Doesn't exist !"})).catch(err  => res.json({message:"Error deleting user !"}))
+                               }).catch(err => {
+                                res.json({message: "Error occured finding user !"})
+                         })}
+                              
 })
 
 

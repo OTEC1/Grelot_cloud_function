@@ -13,8 +13,42 @@ const cors = cors1(({ origin: true }));
 
 
 
+
+
+
+
+let p = 2;
+let q:any;
+q = true;
+const domain1 = () => {
+  return p === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
+}
+
 const Cravetech = express();
-Cravetech.use(cors)
+var corsOptions = {
+    origin: domain1(),
+    credentials : true
+   }
+
+Cravetech.use(cors1(corsOptions));
+Cravetech.use(function (req, res, next) {	
+    res.setHeader('Access-Control-Allow-Origin', domain1());    
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
+    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
+    res.setHeader('Access-Control-Allow-Credentials', q);    
+    next();
+});
+Cravetech.use(cookieParser());
+Cravetech.use(attachCsrfToken1('/', 'csrfToken', (Math.random()* 100000000000000000).toString()));
+function attachCsrfToken1(url:any, cookie:any, value:any) {
+    return function(req:any, res:any, next:any) {
+      if (req.url === url) {
+        res.cookie(cookie, value);
+      }
+      next();
+    }
+  }
+
 //Check for device imel number on request
 Cravetech.post("/AuthUserSession", AuthUserSession);
 Cravetech.post("/RegisterNewUser", RegisterNewUser);
@@ -36,9 +70,6 @@ Cravetech.post("/SignInWithEmail",SignInWithEmail);
 Cravetech.post("/Purchase_voches",Purchase_voches);
 Cravetech.post("/ExchangeFunds",ExchangeFunds);
 Cravetech.post("/Group_Creator_Cancel",Group_Creator_Cancel);
-
-
-
 exports.Cravetech = functions.https.onRequest(Cravetech);
 
 
