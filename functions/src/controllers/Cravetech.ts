@@ -92,7 +92,8 @@ type UserRequest = {
         email:string,
         IMEI:string,
         doc_id:string,
-        creator:string
+        creator_email:string,
+        category:string
     }
 }
 
@@ -132,7 +133,7 @@ type GroupStatus = {
         IMEI:string,
         user_id:string,
         doc_id:string,
-        creator_id:string
+        creator_email:string
     }
 }
 
@@ -164,7 +165,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
             if(MACHINE_CHECK(req)){
                     let user: Register = req.body
-                        admin.auth().createUser({ 
+                        sec_admin.createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
                                         password:user.User.password,
@@ -202,15 +203,12 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
 
 export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
         let user: GroupWithdrawal = req.body;
-         let user_node = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+         let user_node = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
             if((await user_node.get()).exists){
-
                 sec_admin.verifyIdToken(user.User.user_id)
-                  .then(async (resP) => {
-
+                    .then(async (resP) => {
                        let m:any = CheckForNode((await user_node.get()).data());
                             res.json({message:m.User});
-
                            }).catch(err => {
 
                             const actionCode = {url:'http://localhost:3000',handleCodeInApp: true,};  
@@ -263,15 +261,6 @@ export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
 
 
 
-function Admin (){
-    return admin.auth();
-}
-
-
-
-
-
-
 
 
 
@@ -281,7 +270,7 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
     try{
          let user:CheckUserStat = req.body
                 if(await Isvalid(user.User,res,req)){
-                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
                     if((await docs.get()).exists){
                             const data:any = CheckForNode((await docs.get()).data());
                                 if(data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
@@ -305,7 +294,7 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
         let user:Withdrawals = req.body;
           if(await Isvalid(user.User,res,req)){
-                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
                                 if((await user_node.get()).exists){
                                      let m:any = CheckForNode((await user_node.get()).data());
                                             if(m.User_details.bal > user.User.amount){
@@ -393,10 +382,10 @@ function RunFun(filter:any, user:any, group:any, account:any, res:functions.Resp
 export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) => {
     let user:GroupWithdrawal = req.body;
          if(await Isvalid(user.User,res,req)){
-               let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
+               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(process.env.REACT_APP_JOINED_GROUP!).doc(user.User.doc_id);    
                  if((await account.get()).exists){
                         let m:any = CheckForNode((await account.get()).data());
-                            let group:any = db.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id);
+                            let group:any = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.members_ids[0]).collection(m.User.members_ids[0]+"_stakes").doc(m.User.doc_id);
                                 let filter:any = CheckForNode((await group.get()).data()); 
                                    DeactiveAccout(user.User.user_id,1,"",res);
                                         RunFun(filter,user,group,account,res,m.User.doc_id);
@@ -415,7 +404,7 @@ export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) =>
     try{
          let user:GroupCreation = req.body;
           if(await Isvalid(user.User,res,req)){
-              let group_node = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(user.User.user_id+"_stakes").doc(user.User.doc_id);
+              let group_node = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(user.User.user_id+"_stakes").doc(user.User.doc_id);
                  if((await group_node.get()).exists){
                     let m:any = CheckForNode((await group_node.get()).data());
                             if(m.User.members_ids[0].toString() === user.User.user_id){
@@ -490,13 +479,16 @@ async function UpdateUsersNodes(members: any[], user:any){
     if(user !== null)
         for(let i =0; i < members.length; i++){ 
             let e:string = members[i];
-             let soc = db.collection(process.env.REACT_APP_USER_DB!).doc(e).collection(process.env.REACT_APP_JOINED_GROUP!);
-               let snapshot = await soc.where('User.doc_id', "==", user).get();
-                    if(!snapshot.empty){
-                        snapshot.forEach((doc) =>{
-                            db.collection(process.env.REACT_APP_USER_DB!).doc(e).collection(process.env.REACT_APP_JOINED_GROUP!).doc(doc.id)
-                                .update("User.members_ids",members);
-                        })}}
+            let email = await sec_admin.getUser(e);
+                if(email){
+                    let soc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(email.email!).collection(process.env.REACT_APP_JOINED_GROUP!);
+                     let snapshot = await soc.where('User.doc_id', "==", user).get();
+                            if(!snapshot.empty){
+                                snapshot.forEach((doc) =>{
+                                    db_sec.collection(process.env.REACT_APP_USER_DB!).doc(e).collection(process.env.REACT_APP_JOINED_GROUP!).doc(doc.id)
+                                        .update("User.members_ids",members);
+                        
+                        })}}}
 }
 
 
@@ -573,9 +565,9 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
 
 
 async function Debit_account(user:UserNoRequest){
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
     let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-        if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+        if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
                 if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
@@ -625,8 +617,8 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
 
 async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
     let list = [];
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
                      if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
                         if(i === 1)
@@ -705,12 +697,12 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
     else
         messages = ms;
 
-    let doc_ = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
 
       if(credit_node === 3)
-          admindoc = db.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+          admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
 
-           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).get()).exists){
+            if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
 
                     if(credit_node === 3)
@@ -735,13 +727,13 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
 export const GenerateRandom = functions.https.onRequest(async (req,res) => {
           let user:UserRequest = req.body;
              if(await Isvalid(user.User,res,req)){
-                let table = "CreavatechQ_"+user.User.creator;
-                   let doc = db.collection(table).doc(user.User.creator).collection(table).listDocuments();
+                let table = "CreavatechQ_"+user.User.category;
+                   let doc = db_sec.collection(table).doc(user.User.email).collection(table).listDocuments();
                     let count = await UniqueList(100);
                       const array: any[] = [];
                         count.forEach(v => array.push(v));
                          if(array){
-                                let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.creator);
+                                let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
                                     if(!(await doc.get()).exists){
                                             doc.set({Count:array,timestamp: Date.now()});
                                         res.json({message: "All set !"})
@@ -749,8 +741,7 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                         let m:any = CheckForNode((await doc.get()).data());
                                             if(m.Count.length > 0){
                                                 let ls = m.Count.pop();
-                                                   doc.set({Count:m.Count,timestamp:m.timestamp});
-                                                      AuthUserRequest(res,user,ls);
+                                                 AuthUserRequest(res,user,ls,doc,m.Count,m.timestamp);
                                                 }else
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
@@ -768,7 +759,7 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
 
 
 //Check user bal and gas 
-async function AuthUserRequest(res: functions.Response<any>,data: any,id:any){
+async function AuthUserRequest(res: functions.Response<any>,data: any,id:any,documents:any,Count:any,tamp:any){
     let raw_data:Qs [] = [];
     let list:any [] = [];
         let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
@@ -777,6 +768,7 @@ async function AuthUserRequest(res: functions.Response<any>,data: any,id:any){
                         if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
                                 let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",id).get();
                                 docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                                  documents.set({Count:Count,timestamp:tamp});
                                     res.json({message:raw_data})
                                 } else { 
                                     list.push({error: "Insufficient funds pls purchase gas !"})
@@ -814,13 +806,13 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
     if(await Isvalid(user.User,res,req)){
-         admin.auth().getUser(user.User.user_id)
+           sec_admin.getUser(user.User.user_id)
             .then(async (use) => {
                 
-                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id)
+                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email)
                        const data:any = CheckForNode((await docs.get()).data());
                              if(data.User_details.gas > user.User.amount){
-                                  let m =  docs.collection(user.User.user_id+"_stakes").doc()
+                                  let m =  docs.collection(user.User.email+"_stakes").doc()
                                   user.User.doc_id = m.id;
                                     members.unshift(user.User.user_id);
                                       user.User.timestamp = Date.now();
@@ -868,8 +860,8 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
             let  user: UserRequest = req.body;
               let grouplist:any [] = [];
                 if(await Isvalid(user.User,res,req)){
-                    let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id);
-                        let creator =   db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator).collection(user.User.creator+"_stakes").doc(user.User.doc_id)
+                    let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+                        let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
                            let Usercheck:any = CheckForNode((await account.get()).data());
                              let Groupcheck:any = CheckForNode((await creator.get()).data());
@@ -922,8 +914,8 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
      let raw1:any [] = []
      let raw2:any [] = []
        if(await Isvalid(user.User,res,req)){
-               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(user.User.user_id+"_stakes").get();
-                   let  joined = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.user_id).collection(process.env.REACT_APP_JOINED_GROUP!).get();
+               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(user.User.user_id+"_stakes").get();
+                   let  joined = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(process.env.REACT_APP_JOINED_GROUP!).get();
                        let doc1 =   (await account).docs;
                          let doc2 =   (await joined).docs;
                           doc1.forEach((doc: any) => raw1.push(doc.data()));  
@@ -940,7 +932,7 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
 export const ViewGroup = functions.https.onRequest(async (req,res) => {
       let m:GroupStatus = req.body;
          if(await Isvalid(m.User,res,req)){
-                let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.creator_id).collection(m.User.creator_id+"_stakes").doc(m.User.doc_id)
+                let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.email).collection(m.User.email+"_stakes").doc(m.User.doc_id)
                     res.json({message: (await group.get()).data()})
           }
 })
@@ -958,7 +950,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                   const response = await docs.get();
                     response.forEach(async (doc) => {
                         let u:any = CheckForNode(doc.data());
-                          list.push(u.User.user_id);
+                          list.push(u.User.email);
                  })        
                  LoopForGroups(list,res,docs,1); 
         }
@@ -975,7 +967,7 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
                   const response = await docs.get();
                     response.forEach(async (doc) => {
                         let u:any = CheckForNode(doc.data());
-                          list.push(u.User.user_id);
+                          list.push(u.User.email);
                            LoopForGroups(list,res,docs,2); 
                  })        
         }
@@ -1348,7 +1340,7 @@ function uniq(a:any) {
             let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
                 if((await docs.get()).exists){
                         let data:any = CheckForNode((await docs.get()).data())
-                                let res = await  admin.auth().getUser(body.user_id)
+                                let res = await  sec_admin.getUser(body.user_id)
                                     if(res.email && body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request) && await UseraccountActive(body.user_id,response))
                                         return true;
                                     else
@@ -1359,8 +1351,7 @@ function uniq(a:any) {
 
 
 function MACHINE_CHECK(req:  functions.Request<any>) {
-  //return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
-return true;
+  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
 }
 
 
@@ -1386,7 +1377,7 @@ function Remove(members_ids: any[], doc:String):any [] {
 
 
 async function UseraccountActive(user_id: any,res: functions.Response<any>) {
-     let user = await admin.auth().getUser(user_id);
+     let user = await sec_admin.getUser(user_id);
         if(!user.disabled)
             return true;
         else
@@ -1400,10 +1391,10 @@ async function UseraccountActive(user_id: any,res: functions.Response<any>) {
 function DeactiveAccout(user:string, init:number, message:string, res:functions.Response<any>){
     let node = {User:{count:1}};
         if(init === 1)
-            db.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
+            db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
                   .update("User.count",0);
         else
-           db.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
+           db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
                   .set(node);
 QuickCheck(user, message, res);    
 };
@@ -1412,11 +1403,11 @@ QuickCheck(user, message, res);
 
 
 async function QuickCheck(user:string, ms: string, res: functions.Response<any>){
-    let count =  db.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user);
+    let count =  db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user);
     if((await count.get()).exists){
         let m:any = CheckForNode((await count.get()).data())
             if(m.User.count+1 === 2)
-               admin.auth().updateUser(user,{disabled:true});
+               sec_admin.updateUser(user,{disabled:true});
          ms.length > 0 ? res.json({message:ms}) : 0
     }
 };
