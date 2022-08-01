@@ -749,8 +749,8 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                         let m:any = CheckForNode((await doc.get()).data());
                                             if(m.Count.length > 0){
                                                 let ls = m.Count.pop();
-                                                    doc.set({Count:m.Count,timestamp:m.timestamp})
-                                                      res.json({message:ls})
+                                                  AuthUserRequest(res,user,ls);
+                                                    doc.set({Count:m.Count,timestamp:m.timestamp});
                                                 }else
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
@@ -760,12 +760,35 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                                                doc.update({Count:array,timestamp: Date.now()});
                                                                 res.json({message:"All Reset !"})
                                                           }
-                                                    }
-                                    }
-                         }
-                         
-             }
+                    }}}}
 })
+
+
+
+
+
+//Check user bal and gas 
+async function AuthUserRequest(res: functions.Response<any>,data: any,id:any){
+    let raw_data:Qs [] = [];
+    let list:any [] = [];
+        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
+            if((await doc.get()).exists){
+                    const user_data:any = CheckForNode((await doc.get()).data());
+                        if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
+                                let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",id).get();
+                                docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                                    res.json({message:raw_data})
+                                } else { 
+                                    list.push({error: "Insufficient funds pls purchase gas !"})
+                                    res.json({message: list})
+                              }
+                        }
+                        else {
+                            list.push({error: "Account Doesn't exist !"});
+                            res.json({message: list});
+                        }
+         
+};
 
 
 
@@ -777,33 +800,6 @@ async function UniqueList(max:number){
     return set;
 }
 
-
-
-//Check user bal and gas 
-export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
-    let data: CheckUserStat = req.body;
-    let raw_data:Qs [] = [];
-    let list:any [] = [];
-    if(await Isvalid(data.User,res,req)){
-        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
-        if((await doc.get()).exists){
-                const user_data:any = CheckForNode((await doc.get()).data());
-                    if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
-                            let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
-                               docs.forEach((doc: any) => raw_data.push(doc.data()));   
-                                  res.json({message:raw_data})
-                            } else { 
-                                list.push({error: "Insufficient funds pls purchase gas !"})
-                                   res.json({message: list})
-                        }
-                    }
-                    else {
-                        list.push({error: "Account Doesn't exist !"});
-                           res.json({message: list});
-                }      
-           }
-         
-})
 
 
 
