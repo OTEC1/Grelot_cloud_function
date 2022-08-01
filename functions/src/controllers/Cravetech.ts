@@ -749,8 +749,8 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                         let m:any = CheckForNode((await doc.get()).data());
                                             if(m.Count.length > 0){
                                                 let ls = m.Count.pop();
-                                                  AuthUserRequest(res,user,ls);
-                                                    doc.set({Count:m.Count,timestamp:m.timestamp});
+                                                   doc.set({Count:m.Count,timestamp:m.timestamp});
+                                                      AuthUserRequest(res,user,ls);
                                                 }else
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
