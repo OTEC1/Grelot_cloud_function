@@ -161,35 +161,36 @@ type Qs = {
 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
-    try{
-          if(MACHINE_CHECK(req)){
-                 let user: Register = req.body
-                      sec_admin.createUser({ 
-                                    email: user.User.email,  
-                                    emailVerified:false,
-                                    password:user.User.password,
-                                    disabled:false,
-                                }).then(async (useRecord) => {
-                                        
-                                    user.User.password = "N/A";
-                                    user.User.user_id = useRecord.uid;
-                                    //Check for rough users
-                                    user.User_details.bal = 0;
-                                    user.User_details.gas = 0;
-                                    user.User.IMEI = uuid()+"_"+ Date.now()
+     try{
+            if(MACHINE_CHECK(req)){
+                    let user: Register = req.body
+                        admin.auth().createUser({ 
+                                        email: user.User.email,  
+                                        emailVerified:false,
+                                        password:user.User.password,
+                                        disabled:false,
+                                    })
+                                    .then(async (useRecord) => {
+                                            
+                                        user.User.password = "N/A";
+                                        user.User.user_id = useRecord.uid;
+                                        //Check for rough users
+                                        user.User_details.bal = 0;
+                                        user.User_details.gas = 0;
+                                        user.User.IMEI = uuid()+"_"+ Date.now()
 
-                                    let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
-                                    let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;;
-                                    if(doc && doc_sec)
-                                        return res.json({message: "Account created"})
-                                    else
-                                        return res.json({message: "Account wasn't created !"});
+                                        let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
+                                        let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;;
+                                        if(doc && doc_sec)
+                                            return res.json({message: "Account created"})
+                                        else
+                                            return res.json({message: "Account wasn't created !"});
 
-                                    }).catch((err => {
-                                        return  res.json({message: err as Error })
-                                }))
-                    }else
-                        Cancel([],res);
+                                        }).catch((err => {
+                                            return  res.json({message: err as Error })
+                                    }))
+                   }else
+                       Cancel([],res);
 
                 }catch(err){
                     res.json({ message: err as Error})
@@ -270,15 +271,7 @@ function Admin (){
 
 
 
-export const AuthUserRequestSize = functions.https.onRequest(async (req,res) => {
-    let data:CheckUserStat = req.body
-        if(await Isvalid(data.User,res,req)){
-            let table = "CreavatechQ_"+data.User.category;
-              let doc = db.collection(table).doc(data.User.category).collection(table).listDocuments();
-                res.json({message: (await doc).length})
-        }
-         
-})
+
 
 
 
@@ -739,6 +732,50 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
 
 
 
+export const GenerateRandom = functions.https.onRequest(async (req,res) => {
+          let user:UserRequest = req.body;
+             if(await Isvalid(user.User,res,req)){
+                let table = "CreavatechQ_"+user.User.creator;
+                   let doc = db.collection(table).doc(user.User.creator).collection(table).listDocuments();
+                    let count = await UniqueList(100);
+                      const array: any[] = [];
+                        count.forEach(v => array.push(v));
+                         if(array){
+                                let doc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.creator);
+                                    if(!(await doc.get()).exists){
+                                            doc.set({Count:array,timestamp: Date.now()});
+                                        res.json({message: "All set !"})
+                                    }else{
+                                        let m:any = CheckForNode((await doc.get()).data());
+                                            if(m.Count.length > 0){
+                                                let ls = m.Count.pop();
+                                                    doc.set({Count:m.Count,timestamp:m.timestamp})
+                                                      res.json({message:ls})
+                                                }else
+                                                    if(m.Count.length <= 0){
+                                                        var date = new Date(m.timestamp);
+                                                          if(date.toLocaleDateString() === new Date().toLocaleDateString())
+                                                               res.json({message:"Pls wait while we reset your Questions"})
+                                                          else{
+                                                               doc.update({Count:array,timestamp: Date.now()});
+                                                                res.json({message:"All Reset !"})
+                                                          }
+                                                    }
+                                    }
+                         }
+                         
+             }
+})
+
+
+
+async function UniqueList(max:number){
+    const set = new Set();
+      while(set.size < max){
+        set.add(Math.floor(Math.random() * max) + 1);
+      }
+    return set;
+}
 
 
 
@@ -748,17 +785,17 @@ export const AuthUserRequest = functions.https.onRequest(async (req,res) => {
     let raw_data:Qs [] = [];
     let list:any [] = [];
     if(await Isvalid(data.User,res,req)){
-        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.user_id);
+        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
         if((await doc.get()).exists){
                 const user_data:any = CheckForNode((await doc.get()).data());
                     if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
-                        let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
-                        docs.forEach((doc: any) => raw_data.push(doc.data()));   
-                            res.json({message:raw_data})
-                        } else { 
-                            list.push({error: "Insufficient funds pls purchase gas !"})
-                              res.json({message: list})
-                       }
+                            let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",data.User.id).get();
+                               docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                                  res.json({message:raw_data})
+                            } else { 
+                                list.push({error: "Insufficient funds pls purchase gas !"})
+                                   res.json({message: list})
+                        }
                     }
                     else {
                         list.push({error: "Account Doesn't exist !"});
@@ -926,8 +963,8 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                     response.forEach(async (doc) => {
                         let u:any = CheckForNode(doc.data());
                           list.push(u.User.user_id);
-                           LoopForGroups(list,res,docs,1); 
                  })        
+                 LoopForGroups(list,res,docs,1); 
         }
 })
 
@@ -988,28 +1025,28 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
     let category = data.category;
     let list: any[] = [];
     let id: number;
-        if(data.category == "Sports")
+        if(data.category === "Sports")
                 id = 21;
-            else if(data.category == "Music")
+            else if(data.category === "Music")
                 id = 12;
-            else if(data.category == "General")
+            else if(data.category === "General")
                     id = 9;
-            else if(data.category == "Vehicles")
+            else if(data.category === "Vehicles")
                     id = 28;
-            else if(data.category == "Politics")
+            else if(data.category === "Politics")
                     id = 24;
-            else if (data.category == "History")
+            else if (data.category === "History")
                     id = 23;
-            else if(data.category == "Science")
+            else if(data.category === "Science")
                     id = 17;
-            else if(data.category == "Religion")
+            else if(data.category === "Religion")
                     id = 9;
 
 
-           if(await Isvalid(data,res,req)){
-               if(data.section == 1){
-                    axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
+        //    if(await Isvalid(data,res,req)){
+                      axios.get(process.env.REACT_APP_TABLE1!,{headers:{'X-RapidAPI-Host': process.env.REACT_APP_HOSTS!,'X-RapidAPI-Key': process.env.REACT_APP_API_AUTH!}
                            }).then(responseQ => { 
+                            console.log("1");
                                     axios.get(   
                                          id === 17 ?
                                          `https://opentdb.com/api.php?amount=50&category=17`
@@ -1025,45 +1062,46 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                         : 
                                          id === 21 ? 
                                             `https://opentdb.com/api.php?amount=50&category=21&type=multiple` 
-                                        :
-                                           `https://opentdb.com/api.php?amount=50&category=${id}&difficulty=hard&type=multiple`
+                                         :
+                                           "https://opentdb.com/api.php?amount=50&category="+data.id+"&difficulty=hard&type=multiple"
 
-                                        )
+                                           )
                                         .then(response => {
-                                                     if(category == "Music"){
+                                            console.log("2");
+                                                     if(category === "Music"){
                                                             n = 0;
                                                             addToList(Pack(response.data.results,2,list),"Music")
                                                             return res.json({ message:  list.length})
                                                      }else  
-                                                        if(category == "Vehicles"){
+                                                        if(category === "Vehicles"){
                                                             n = 0; 
                                                             addToList(Pack(response.data.results,2,list), "Vehicles")
                                                             return res.json({message:  list.length})
                                                     }else 
-                                                        if(category == "Politics"){
+                                                        if(category === "Politics"){
                                                             n = 0;
                                                             addToList(Pack(response.data.results,2,list),"Politics")
                                                             return res.json({message: list.length})
                                                     }else 
-                                                          if(category == "History"){
+                                                          if(category === "History"){
                                                                  n = 0;
                                                                  addToList(Pack(response.data.results,2,list),"History")
                                                                 return res.json({message:  list.length})
                                                     }else 
-                                                        if(category == "Science"){
+                                                        if(category === "Science"){
                                                             for(let y=0; y < response.data.results.length; y++)
                                                                     list.push(response.data.results[y])
                                                                Q1(res,list);
                                                        }                                                            
                                                         else
-                                                           if(category == "General"){
+                                                           if(category === "General"){
                                                                 n = 0;
                                                                 for(let y=0; y < responseQ.data.length; y++)
                                                                     Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"General",list,1)
                                                                     addToList(list,"General")
                                                                     return res.json({ message: list.length})
                                                           }else 
-                                                             if(category == "Sports"){  
+                                                             if(category === "Sports"){  
                                                                  n = 0;  
                                                                  for(let y=0; y < response.data.results.length; y++)
                                                                      Model("",response.data.results[y],"Sports",list,2)
@@ -1074,8 +1112,9 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                              return res.json({message: list.length}) 
                                                           }    
                                                             else
-                                                                 if(category == "Religion"){
+                                                                 if(category === "Religion"){
                                                                     n = 0;
+                                                                    console.log("3")
                                                                     for(let y=0; y < responseQ.data.length; y++)
                                                                          Model(responseQ.data[y], response.data.results[getRandom(response.data.results.length)],"Religion",list,3)
                                                                     addToList(list,"Religion")
@@ -1087,23 +1126,18 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
                                                            })
                                                       })
                                         
-                                         })                                 
-                                }
-                else 
-                   DB_STORE();
-          }
-        else  {
-                list.push({error: "Unauthorized Request ! "});
-                res.json({message: list});
-        }
+                                         })
+                                         .catch(err  => res.json({message: err as Error}))                                
+        //   }
+        // else  {
+        //         list.push({error: "Unauthorized Request ! "});
+        //         res.json({message: list});
+        // }
 })
 
 
 
 
-function DB_STORE() {
-    throw new Error('Function not implemented.');
-}
 
 
 
@@ -1315,7 +1349,7 @@ function uniq(a:any) {
 
 
  async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
-            let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.user_id);
+            let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
                 if((await docs.get()).exists){
                         let data:any = CheckForNode((await docs.get()).data())
                                 let res = await  admin.auth().getUser(body.user_id)
@@ -1329,7 +1363,8 @@ function uniq(a:any) {
 
 
 function MACHINE_CHECK(req:  functions.Request<any>) {
-  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
+  //return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
+return true;
 }
 
 
@@ -1351,14 +1386,20 @@ function Remove(members_ids: any[], doc:String):any [] {
 }
 
 
+
+
+
 async function UseraccountActive(user_id: any,res: functions.Response<any>) {
      let user = await admin.auth().getUser(user_id);
-            if(!user.disabled)
-               return true;
-            else
-                res.json({message: "Your account has been disabled !"})
+        if(!user.disabled)
+            return true;
+        else
+            res.json({message: "Your account has been disabled !"})
     
 }
+
+
+
 
 function DeactiveAccout(user:string, init:number, message:string, res:functions.Response<any>){
     let node = {User:{count:1}};
@@ -1370,6 +1411,8 @@ function DeactiveAccout(user:string, init:number, message:string, res:functions.
                   .set(node);
 QuickCheck(user, message, res);    
 };
+
+
 
 
 async function QuickCheck(user:string, ms: string, res: functions.Response<any>){
