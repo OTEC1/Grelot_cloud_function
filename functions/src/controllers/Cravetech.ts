@@ -291,34 +291,6 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 
 
 
-export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
-        let user:Withdrawals = req.body;
-          if(await Isvalid(user.User,res,req)){
-                      let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-                                if((await user_node.get()).exists){
-                                     let m:any = CheckForNode((await user_node.get()).data());
-                                            if(m.User_details.bal > user.User.amount){
-                                                let count = 0;
-                                                let store = 0;
-                                                let amount = user.User.amount;
-                                                    for(let m = 0; m < user.User.amount; m++){
-                                                        count ++;
-                                                            if(count >= 10){      
-                                                                store += 1;
-                                                                amount -= 10;
-                                                                count = 0;
-                                                            }
-                                                            
-                                                            if(m === user.User.amount-1){
-                                                                    store = amount >= 5 ? store+1 : store+.5
-                                                                    res.json({message: store})   
-                                                            }
-                                                        }
-                                            } else
-                                                  res.json({message: "Insufficient funds !"});
-                                            
-                                   }
-                    }});
 
 
 
@@ -710,7 +682,7 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
 
                      if(i ===  1){ //still needs more check
                            //check if its for app call or withrawal call for debiting
-                          doc_.update("User_details.bal", Action(1, credit_node == 3 ? adata.credit : credit_node === 2 ? withdrawel_node : 0 ,data.User_details.bal));
+                          doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : 0 ,data.User_details.bal));
                             return res.json({message:messages})
                       }else
                          if(i ===  2){ //still needs more check   
@@ -724,8 +696,51 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
 
 
 
+
+
+function Looper(credit:number){
+    let count = 0;
+    let store = 0;
+    let amount = credit;
+        for(let m = 0; m < credit; m++){
+            count ++;
+                if(count >= 10){      
+                    store += 1;
+                    amount -= 10;
+                    count = 0;
+                }
+                
+                if(m === credit-1){
+                        store = amount >= 5 ? store+1 : store+.5
+                       return store;
+                }
+            }
+}
+
+
+
+
+
+export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
+    let user:Withdrawals = req.body;
+      if(await Isvalid(user.User,res,req)){
+                  let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+                            if((await user_node.get()).exists){
+                                 let m:any = CheckForNode((await user_node.get()).data());
+                                        if(m.User_details.bal > user.User.amount){
+                                           //Sell gas or sport to friend nodes by email and ID
+                                        } else
+                                              res.json({message: "Insufficient funds !"});
+                                        
+                               }
+                }});
+
+
+
+
 export const GenerateRandom = functions.https.onRequest(async (req,res) => {
           let user:UserRequest = req.body;
+            let listres = [];
              if(await Isvalid(user.User,res,req)){
                 let table = "CreavatechQ_"+user.User.category;
                    let doc = db_sec.collection(table).doc(user.User.email).collection(table).listDocuments();
@@ -736,7 +751,8 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                 let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
                                     if(!(await doc.get()).exists){
                                             doc.set({Count:array,timestamp: Date.now()});
-                                        res.json({message: "All set !"})
+                                              listres.unshift("All set !");
+                                        res.json({message: listres})
                                     }else{
                                         let m:any = CheckForNode((await doc.get()).data());
                                             if(m.Count.length > 0){
@@ -745,14 +761,14 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                                 }else
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
-                                                          if(date.toLocaleDateString() === new Date().toLocaleDateString())
-                                                               res.json({message:"Pls wait while we reset your Questions"})
-                                                          else{
+                                                          if(date.toLocaleDateString() === new Date().toLocaleDateString()){
+                                                               listres.unshift("Pls wait while we reset your Questions")
+                                                                 res.json({message: listres})
+                                                          }else{
                                                                doc.update({Count:array,timestamp: Date.now()});
-                                                                res.json({message:"All Reset !"})
-                                                          }
-                    }}}}
-})
+                                                                listres.unshift("All Reset !");
+                                                                   res.json({message: listres})
+    }}}}}})
 
 
 
