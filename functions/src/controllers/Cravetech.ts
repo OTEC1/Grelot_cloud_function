@@ -302,7 +302,7 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
       let user: CheckUserStat  = req.body;
       let raw_data:any [] = []
                 if(await Isvalid(user.User,res,req)){
-                        if(user.User.category.trim().length > 0){
+                        if(user.User.category.trim().length > 0 && user.User.list.length >= 5){
                             let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
                             docs.forEach((doc: any) => raw_data.push(doc.data()));  
 
@@ -741,7 +741,7 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
 export const GenerateRandom = functions.https.onRequest(async (req,res) => {
           let user:UserRequest = req.body;
             let listres = [];
-             //if(await Isvalid(user.User,res,req)){
+             if(await Isvalid(user.User,res,req)){
                 let table = "CreavatechQ_"+user.User.category;
                     let count = await UniqueList((await db.collection(table).doc(user.User.category).collection(table).listDocuments()).length);
                        const array: any[] = [];
@@ -750,7 +750,7 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                 let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
                                     if(!(await doc.get()).exists){
                                             doc.set({Count:array,timestamp: Date.now()});
-                                              listres.unshift({error:"All set !"});
+                                              listres.push({error:"All set !"});
                                         res.json({message: listres})
                                     }else{
                                         let m:any = CheckForNode((await doc.get()).data());
@@ -761,15 +761,17 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
                                                           if(date.toLocaleDateString() === new Date().toLocaleDateString()){
-                                                               listres.unshift({error:"Pls wait while we reset your Questions"})
+                                                               listres.push({error:"Pls wait while we reset your Questions"})
                                                                  res.json({message: listres})
                                                           }else{
                                                                doc.update({Count:array,timestamp: Date.now()});
-                                                                listres.unshift({error:"All Reset !"});
+                                                                listres.push({error:"All Reset !"});
                                                                    res.json({message: listres})
-    }}}}
-//}
-
+                            }
+                        }
+                     }
+                  }
+                }
 })
 
 
@@ -785,9 +787,9 @@ async function AuthUserRequest(res: functions.Response<any>,data: any,id:any,doc
                     const user_data:any = CheckForNode((await doc.get()).data());
                         if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
                                 let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",id).get();
-                                docs.forEach((doc: any) => raw_data.push(doc.data()));   
-                                  documents.set({Count:Count,timestamp:tamp});
-                                    res.json({message:raw_data})
+                                  docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                                    documents.set({Count:Count,timestamp:tamp});
+                                      res.json({message:raw_data})
                                 } else { 
                                     list.push({error: "Insufficient funds pls purchase gas !"})
                                     res.json({message: list})
@@ -827,9 +829,9 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
            sec_admin.getUser(user.User.user_id)
             .then(async (use) => {
                 
-                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email)
-                       const data:any = CheckForNode((await docs.get()).data());
-                             if(data.User_details.gas > user.User.amount){
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email)
+                       const da:any = CheckForNode((await docs.get()).data());
+                             if(da.User_details.gas > user.User.amount){
                                   let m =  docs.collection(user.User.email+"_stakes").doc()
                                   user.User.doc_id = m.id;
                                     members.unshift(user.User.user_id);
@@ -845,7 +847,7 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                                                     user.User.profit = 0;
                                                     user.User.loss = 0;
                                                     m.set(user);
-                                                    docs.update("User_details.gas",Action(2,user.User.amount,data.User_details.gas));
+                                                    docs.update("User_details.gas",Action(2,user.User.amount,da.User_details.gas));
                                                      DeactiveAccout(use.uid,1,"",res);
 
                                                         if(m.id)
