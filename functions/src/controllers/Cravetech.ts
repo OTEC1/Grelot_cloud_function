@@ -728,7 +728,7 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
                             if((await user_node.get()).exists){
                                  let m:any = CheckForNode((await user_node.get()).data());
                                         if(m.User_details.bal > user.User.amount){
-                                           //Sell gas or sport to friend nodes by email and ID
+                                           //Sell gas or spot to friend nodes by email and ID
                                         } else
                                               res.json({message: "Insufficient funds !"});
                                         
@@ -741,17 +741,16 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
 export const GenerateRandom = functions.https.onRequest(async (req,res) => {
           let user:UserRequest = req.body;
             let listres = [];
-             if(await Isvalid(user.User,res,req)){
+             //if(await Isvalid(user.User,res,req)){
                 let table = "CreavatechQ_"+user.User.category;
-                   let doc = db_sec.collection(table).doc(user.User.email).collection(table).listDocuments();
-                    let count = await UniqueList(100);
-                      const array: any[] = [];
-                        count.forEach(v => array.push(v));
-                         if(array){
+                    let count = await UniqueList((await db.collection(table).doc(user.User.category).collection(table).listDocuments()).length);
+                       const array: any[] = [];
+                           count.forEach(v => array.push(v));
+                             if(array){
                                 let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
                                     if(!(await doc.get()).exists){
                                             doc.set({Count:array,timestamp: Date.now()});
-                                              listres.unshift("All set !");
+                                              listres.unshift({error:"All set !"});
                                         res.json({message: listres})
                                     }else{
                                         let m:any = CheckForNode((await doc.get()).data());
@@ -762,13 +761,16 @@ export const GenerateRandom = functions.https.onRequest(async (req,res) => {
                                                     if(m.Count.length <= 0){
                                                         var date = new Date(m.timestamp);
                                                           if(date.toLocaleDateString() === new Date().toLocaleDateString()){
-                                                               listres.unshift("Pls wait while we reset your Questions")
+                                                               listres.unshift({error:"Pls wait while we reset your Questions"})
                                                                  res.json({message: listres})
                                                           }else{
                                                                doc.update({Count:array,timestamp: Date.now()});
-                                                                listres.unshift("All Reset !");
+                                                                listres.unshift({error:"All Reset !"});
                                                                    res.json({message: listres})
-    }}}}}})
+    }}}}
+//}
+
+})
 
 
 
