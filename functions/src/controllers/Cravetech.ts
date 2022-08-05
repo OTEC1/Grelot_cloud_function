@@ -883,6 +883,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                     let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
                         let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
+
                            let Usercheck:any = CheckForNode((await account.get()).data());
                              let Groupcheck:any = CheckForNode((await creator.get()).data());
 
@@ -934,7 +935,7 @@ export const GetListOfCreatedGroup = functions.https.onRequest(async (req,res) =
      let raw1:any [] = []
      let raw2:any [] = []
        if(await Isvalid(user.User,res,req)){
-               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(user.User.user_id+"_stakes").get();
+               let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(user.User.email+"_stakes").get();
                    let  joined = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(process.env.REACT_APP_JOINED_GROUP!).get();
                        let doc1 =   (await account).docs;
                          let doc2 =   (await joined).docs;
