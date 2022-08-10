@@ -3,7 +3,7 @@ import {db, db_sec, admin, sec_admin} from '../config/firebase'
 import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
-import { messaging } from 'firebase-admin';
+import { auth, messaging } from 'firebase-admin';
 require('dotenv').config()
 
 
@@ -163,7 +163,7 @@ type Qs = {
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
-            if(MACHINE_CHECK(req)){
+          if(MACHINE_CHECK(req)){
                     let user: Register = req.body
                         sec_admin.createUser({ 
                                         email: user.User.email,  
@@ -178,11 +178,10 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                         //Check for rough users
                                         user.User_details.bal = 0;
                                         user.User_details.gas = 0;
-                                        user.User.IMEI = uuid()+"_"+ Date.now()
+                                        user.User.IMEI = uuid()+"_"+ Date.now()+"_"+uuid()
 
-                                        let doc = (await db.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
-                                        let doc_sec = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;;
-                                        if(doc && doc_sec)
+                                        let doc = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
+                                        if(doc)
                                             return res.json({message: "Account created"})
                                         else
                                             return res.json({message: "Account wasn't created !"});
@@ -190,8 +189,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                         }).catch((err => {
                                             return  res.json({message: err as Error })
                                     }))
-                   }else
-                       Cancel([],res);
+                    }else
+                        Cancel([],res);
 
                 }catch(err){
                     res.json({ message: err as Error})
@@ -464,11 +463,6 @@ async function UpdateUsersNodes(members: any[], user:any){
 }
 
 
-function Collector(user_id: any, profit: number) {
-    console.log("Store"+ profit)
-}
-
-
 
 
 function Divide(users: any[], amount:number):any[]{
@@ -501,12 +495,18 @@ function loopUser(users: any[],user:any){
 
 
 
+function Collector(user_id: any, profit: number) {
+    console.log("Store"+ profit)
+}
+
+
+
 
 
 export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
-     if(await Isvalid(user.User,res,req)){
+      if(await Isvalid(user.User,res,req)){
          if(user.User.isUser && user.User.user_selected.length > 0){
               if(await Debit_account(user))
                  caclulate(res,user,getRandom(100),[],[],1);
@@ -536,10 +536,11 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
 
 
 
+
 async function Debit_account(user:UserNoRequest){
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
     let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-        if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+        if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
                 if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
@@ -553,16 +554,19 @@ async function Debit_account(user:UserNoRequest){
 
 
 function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
+    let list = [];
     let indopotency = false;
-    if(i === 1)
-    {
+    if(i === 1){
+        console.log(user.User.user_selected, ran);
         for(let d = 0; d < user.User.user_selected.length; d++)
-            if(user.User.user_selected[d] === ran){
+            if(user.User.user_selected[d] === ran.toString()){
                 Account(res,user,1,ran);
                 indopotency = true;
             }
-        if(!indopotency)
-            return res.json({message:{m1:"Sorry you didn't win this stage !",m2:ran}})
+        if(!indopotency){
+              list.unshift({m1:"Sorry you didn't win this stage !",m2:ran});
+            return res.json({message:list})
+        }
     }
     else 
         if(select.length <= 3 && i === 2){
@@ -575,8 +579,10 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                     Account(res,user,1,lucky[bet]);  
                     indopotency = true;
                  }
-        if(!indopotency) //check for rough request
-               return res.json({message:{m1:"Sorry you didn't win this stage !",m2:lucky[bet]}}) 
+        if(!indopotency) {//check for rough request
+                  list.unshift({m1:"Sorry you didn't win this stage !",m2:lucky[bet]})
+               return res.json({message:list}) 
+        }
             
               
     }
@@ -590,7 +596,7 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
 async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
     let list = [];
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-           if((await db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+           if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
                      if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
                         if(i === 1)
@@ -660,14 +666,14 @@ export const Purchase_voches = functions.https.onRequest(async (req,res) => {
 
 
 async function UpdateUserAccount(res: functions.Response<any>, user:any, i:number, ms:string, rt:any, credit_node:number, withdrawel_node: number) {
-    let messages;
+    let messages = [];
     let admindoc:any;
     let adata:any;
 
     if(rt !== undefined)
-        messages = {m1:ms,m2:rt}
+        messages.push({m1:ms,m2:rt})
     else
-        messages = ms;
+        messages.push(ms);
 
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
 
