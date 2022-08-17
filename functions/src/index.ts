@@ -17,22 +17,22 @@ const cors = cors1(({ origin: true }));
 
 
 
-let p = 1;
+
 let q:any;
 q = true;
-const domain1 = () => {
-  return p === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
+const domain1 = (p:number) => {
+  return p === 1 ? "https://cravetech-9b39c.web.app"  : "http://localhost:3000"
 }
 
 const Cravetech = express();
 var corsOptions = {
-    origin: domain1(),
+    origin: domain1(2),
     credentials : true
    }
 
 Cravetech.use(cors1(corsOptions));
 Cravetech.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain1());    
+    res.setHeader('Access-Control-Allow-Origin', domain1(2));    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', q);    
@@ -141,22 +141,22 @@ exports.Monclaris = functions.https.onRequest(Monclaris);
 
 
 
-let n = 2;
+
 let v:any;
 v = true;
-const domain = () => {
+const domain = (n:number) => {
   return n === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
 }
 
 const Grelot = express();
 var corsOptions = {
-    origin: domain(),
+    origin: domain(2),
     credentials : true
    }
 
 Grelot.use(cors1(corsOptions));
 Grelot.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain());    
+    res.setHeader('Access-Control-Allow-Origin', domain(2));    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', v);    

@@ -163,28 +163,32 @@ type Qs = {
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
+        let user: Register = req.body
           if(MACHINE_CHECK(req)){
-                    let user: Register = req.body
                         sec_admin.createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
                                         password:user.User.password,
                                         disabled:false,
                                     })
-                                    .then(async (useRecord) => {
+                                    .then(async (record) => {
                                             
                                         user.User.password = "N/A";
-                                        user.User.user_id = useRecord.uid;
+                                        user.User.user_id = record.uid;
+                                        user.User.timeStamp = Date.now();
                                         //Check for rough users
-                                        user.User_details.bal = 0;
-                                        user.User_details.gas = 0;
-                                        user.User.IMEI = uuid()+"_"+ Date.now()+"_"+uuid()
+                                        if(user.User_details.bal === 0  && user.User_details.gas === 0){
+                                                user.User_details.bal = 0;
+                                                user.User_details.gas = 0;
+                                                user.User.IMEI = uuid()+"_"+ Date.now()+"_"+uuid()
+                                                    if(await REMOVENODE(null,2,db,record.email)){
+                                                         if(await REMOVENODE(user,1,db_sec,record.email))
+                                                           return res.json({message: "Account created"})
+                                                    }else
+                                                        return res.json({message: "Account wasn't created !"});
+                                            }else
+                                                return res.json({message: "Account wasn't created !!"});
 
-                                        let doc = (await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(useRecord.email!).set(user)).writeTime;
-                                        if(doc)
-                                            return res.json({message: "Account created"})
-                                        else
-                                            return res.json({message: "Account wasn't created !"});
 
                                         }).catch((err => {
                                             return  res.json({message: err as Error })
@@ -730,7 +734,7 @@ function Looper(credit:number){
 export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
     let user:Withdrawals = req.body;
       if(await Isvalid(user.User,res,req)){
-                  let user_node =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+                  let user_node =  db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
                             if((await user_node.get()).exists){
                                  let m:any = CheckForNode((await user_node.get()).data());
                                         if(m.User_details.bal > user.User.amount){
@@ -1005,6 +1009,7 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
 
 
 async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:number) {
+
     let groups:GroupCreation [] = [];
     for(let y=0; y < list.length; y++){
          const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
@@ -1366,9 +1371,9 @@ function uniq(a:any) {
  async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
             let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
                 if((await docs.get()).exists){
-                        let data:any = CheckForNode((await docs.get()).data())
-                                let res = await  sec_admin.getUser(body.user_id)
-                                    if(res.email && body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request) && await UseraccountActive(body.user_id,response))
+                                let res =  db_sec.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
+                                    let data:any = CheckForNode((await res.get()).data())
+                                    if(body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request) && await UseraccountActive(body.user_id,response))
                                         return true;
                                     else
                                         Cancel([], response);
@@ -1421,7 +1426,7 @@ function DeactiveAccout(user:string, init:number, message:string, res:functions.
             db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
                   .update("User.count",0);
         else
-           db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
+            db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user)
                   .set(node);
 QuickCheck(user, message, res);    
 };
@@ -1440,5 +1445,10 @@ async function QuickCheck(user:string, ms: string, res: functions.Response<any>)
 };
 
 
+
+
+async function REMOVENODE(user:any, n:number, dual_db:any, record:any) {
+   return  (await dual_db.collection(process.env.REACT_APP_USER_DB!).doc(record).set(n === 1 ? user : {User:{email:record}})).writeTime;
+}
 
 
