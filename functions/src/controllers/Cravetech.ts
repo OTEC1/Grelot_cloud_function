@@ -15,7 +15,6 @@ type Register = {
         user_id:string,
         password:any,
         avatar:number,
-        UserCategory:any, 
         timeStamp:number,
     },
     User_details:{
@@ -165,13 +164,13 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
         let user: Register = req.body
           if(MACHINE_CHECK(req)){
+
                         sec_admin.createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
                                         password:user.User.password,
                                         disabled:false,
-                                    })
-                                    .then(async (record) => {
+                                    }).then(async (record) => {
                                             
                                         user.User.password = "N/A";
                                         user.User.user_id = record.uid;
@@ -276,11 +275,7 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
                     if((await docs.get()).exists){
                             const data:any = CheckForNode((await docs.get()).data());
-                                if(data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
-                                    res.json({message: true})
-                                }
-                                else
-                                    res.json({message: false})
+                                    res.json({message: data.User_details})
                             }
                             else 
                                 res.json({message:"Account not found"})
@@ -1383,8 +1378,21 @@ function uniq(a:any) {
 
 
 function MACHINE_CHECK(req:  functions.Request<any>) {
-  return  req.headers['user-agent'] === process.env.REACT_APP_MACHINE ||  req.headers['user-agent'] === process.env.REACT_APP_MACHINE2 ? true : false;
+  return  LOOP(req) ? true : false;
 }
+
+
+
+
+let user_agents = ['Chrome','Firefox','Edg','MSIE','okhttp/3.14.9'];
+function LOOP(req: functions.Request<any>): boolean {
+    let nope:boolean = false;
+    for(let n = 0; n < user_agents.length; n++)
+            if(req.headers['user-agent']?.toString().includes(user_agents[n].toString())) 
+                    nope = true;
+ return nope;
+}
+
 
 
 
@@ -1450,5 +1458,7 @@ async function QuickCheck(user:string, ms: string, res: functions.Response<any>)
 async function REMOVENODE(user:any, n:number, dual_db:any, record:any) {
    return  (await dual_db.collection(process.env.REACT_APP_USER_DB!).doc(record).set(n === 1 ? user : {User:{email:record}})).writeTime;
 }
+
+
 
 

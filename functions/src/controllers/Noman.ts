@@ -91,3 +91,10 @@ export const getTimeStamp =  functions.https.onRequest(async (request,res) => {
     res.send(JSON.stringify({timestamp: Date.now()}));
 
 });
+
+
+
+export const getUserAgent = functions.https.onRequest(async (req,res) => {
+    res.json({agent:  req.headers['user-agent']})
+})
+
