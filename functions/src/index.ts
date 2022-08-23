@@ -26,13 +26,13 @@ const domain1 = (p:number) => {
 
 const Cravetech = express();
 var corsOptions = {
-    origin: domain1(2),
+    origin: domain1(1),
     credentials : true
    }
 
 Cravetech.use(cors1(corsOptions));
 Cravetech.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain1(2));    
+    res.setHeader('Access-Control-Allow-Origin', domain1(1));    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', q);    

@@ -164,7 +164,6 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
         let user: Register = req.body
           if(MACHINE_CHECK(req)){
-
                         sec_admin.createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
