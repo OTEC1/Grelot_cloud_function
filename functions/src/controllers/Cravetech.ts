@@ -212,7 +212,7 @@ export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
                             res.json({message:m.User});
                            }).catch(err => {
 
-                            const actionCode = {url:'http://localhost:3000',handleCodeInApp: true,};  
+                            const actionCode = {url:'https://cravetech-9b39c.web.app',handleCodeInApp: true,};  
 
                                 sec_admin.generateSignInWithEmailLink(user.User.email!,actionCode)
                                   .then((responese) => {

@@ -26,13 +26,13 @@ const domain1 = (p:number) => {
 
 const Cravetech = express();
 var corsOptions = {
-    origin: domain1(1),
+    origin: domain1(2),
     credentials : true
    }
 
 Cravetech.use(cors1(corsOptions));
 Cravetech.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain1(1));    
+    res.setHeader('Access-Control-Allow-Origin', domain1(2));    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', q);    
@@ -145,26 +145,26 @@ exports.Monclaris = functions.https.onRequest(Monclaris);
 
 let v:any;
 v = true;
-const domain = (n:number) => {
+const domain2 = (n:number) => {
   return n === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
 }
 
 const Grelot = express();
 var corsOptions = {
-    origin: domain(2),
+    origin: domain2(2),
     credentials : true
    }
 
 Grelot.use(cors1(corsOptions));
 Grelot.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain(2));    
+    res.setHeader('Access-Control-Allow-Origin', domain2(2));    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', v);    
     next();
 });
 Grelot.use(cookieParser());
-Grelot.use(attachCsrfToken('/', 'csrfToken', (Math.random()* 100000000000000000).toString()));
+Grelot.use(attachCsrfToken('/', 'csrfToken', (Math.random() * 100000000000000000).toString()));
 function attachCsrfToken(url:any, cookie:any, value:any) {
     return function(req:any, res:any, next:any) {
       if (req.url === url) {

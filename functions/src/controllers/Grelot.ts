@@ -80,7 +80,8 @@ type  Newuser = {
 type ExistingUser = {
     User:{
         email:string,
-        passwordhash:string
+        passwordhash:string,
+        usertype:string
     }
 }
 
@@ -142,7 +143,7 @@ export const listofproducts = functions.https.onRequest(async (request, response
 
 export const listofUserAgeGrade = functions.https.onRequest(async (request, response) => {
 
-        let list = ['Target audience','All', 'male',  'female','Both male and female', 'Elderly female','Elderly male','Both Elderly male and female','male kids','female kid','Both kids male and female'];
+        let list = ['Target audience','All', 'male',  'female','Both male and female', 'Elderly female','Elderly male','Both Elderly male and female','male kids','female kids','Both kids male and female'];
 
          response.json({
             message:list
@@ -194,16 +195,12 @@ export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
                             password:user.User.password,
                             displayName: user.User.usertype,
                             disabled:false,
-
                         }).then(async (useRecord) => {
 
                                 user.User.usertoken = useRecord.uid!;
-                                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
-                                            .doc(user.User.usertype)
-                                              .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
-
+                                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
                                 user.User.doc_id = docs.id;
-                                user.User.password = await bycrypt.hash(user.User.password, 12)
+                                user.User.password ="N/A"
                                 docs.set(user);
                                 return  res.json({
                                     message: user.User.usertoken ? "Account created" : "Error creating user !"            
@@ -267,22 +264,18 @@ let idToken = req.body.idToken.toString();
 
 export const GetUserDetails = functions.https.onRequest(async (req,res) => {
       let user:ExistingUser = req.body;
-       admin.auth().getUserByEmail(user.User.email)
+         admin.auth().getUserByEmail(user.User.email)
             .then(async (useRecord) => {
-            let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
-                        .doc(useRecord.displayName!)
-                                .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
-                                        .doc(useRecord.uid!);
-                                        let X = (await docs.get()).data();
-                                        const map  = new Map(Object.entries(X!));
-                                            const data = Object.fromEntries(map);
-                                             res.send({message:  data })
-                                        })
-                                   .catch(err => {
-                                        return   res.json({
-                                            message: err as Error           
-                            })
-            })
+                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype)
+                        .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
+                             .doc(useRecord.uid!);
+                                let X = (await docs.get()).data();
+                                  const map = new Map(Object.entries(X!));
+                                     const data = Object.fromEntries(map);
+                                        res.send({message:  data })
+                     }).catch(err1 => {
+                          res.json({message: err1 as Error })
+           })
 })
 
 
@@ -293,26 +286,29 @@ export const GetUserDetails = functions.https.onRequest(async (req,res) => {
 
 
 export const Sign_in_user_google = functions.https.onRequest(async(req,res) => {
-    let user: ExistingUser = req.body
+    let user:ExistingUser = req.body
        admin.auth()
-              .getUserByEmail(user.User.email)
-                    .then(async (useRecord) => {
-                          let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!)
-                                      .doc(useRecord.displayName!)
-                                        .collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
-                         
-                            return  res.json({
-                              message: (await docs.get()).data()           
-                            })
-
-                           
-                   })
-                      .catch(err => {
-                          return   res.json({
-                              message: err as Error           
-              })
+            .getUserByEmail(user.User.email)
+                .then(async (record) => {
+                     let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(record.uid)
+                        return  res.json({message: (await docs.get()).exists ? (await docs.get()).data()   :  remove(user,res) })
+                }).catch(err1 => {
+                     return res.json({message: err1 as Error })
       })
 })
+
+
+
+async function remove(user: ExistingUser,res: functions.Response<any>) {
+    let operation;
+      let use = await admin.auth().getUserByEmail(user.User.email);
+        if(use.email)
+            operation = await admin.auth().deleteUser(use.uid);
+ return "Account Doesn't exist !";
+}
+
+
+
 
 
 
@@ -327,7 +323,7 @@ export const  VendorInvest = functions.https.onRequest(async(req,res) => {
                         })
                     }).catch(err => {
                         return res.json({
-                         message: err as Error
+                             message: err as Error
                         })
                     });
             
