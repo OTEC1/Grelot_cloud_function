@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
-import { admin, db } from "../config/firebase";
+import { admin, db, db_sec } from "../config/firebase";
 import { auth, firestore } from "firebase-admin";
-import * as bycrypt from 'bcryptjs'
+import { log } from "firebase-functions/logger";
 var Pushy = require('pushy');
 require('dotenv').config()
 
@@ -9,7 +9,13 @@ require('dotenv').config()
 
 //grelot function start
 type member = {
-    data:string,
+    User:{
+        email:string,
+        IMEI:string,
+        user_id:string
+        data:string,
+        usertype:string
+    }
 }
 
 type Payload ={
@@ -51,6 +57,7 @@ type GetDatas = {
 
 
 
+
 type PaymentModel = {
     UserInvestment:{
         amount:number,
@@ -59,6 +66,7 @@ type PaymentModel = {
         timestamp:any
     }
 }
+
 
 type  Newuser = {
     User:{
@@ -73,8 +81,15 @@ type  Newuser = {
         password:string,
         doc_id:string,
     }
+    User_details:{
+        bankAccountNo:string
+        NameOnAccount:string
+        bankSelected:string
+    }
+    User_locations:{
+        
+    }
 }
-
 
 
 type ExistingUser = {
@@ -84,6 +99,36 @@ type ExistingUser = {
         usertype:string
     }
 }
+
+
+
+
+type Posts = {
+        User:{
+            businessname: string,
+            bussinessaddress: string,
+            email: string,
+            usertype:string,
+            whatappnumber:string,
+            img_url:string,
+            user_id:string
+        },
+        UserPost:{
+            doc_id: string,    
+            video: string,
+            image:string,
+            price: number,
+            title:string,
+            description: string,
+            targeted_audience: string,
+            category: string,
+            exif:number,
+            productid: string,
+            timestamp:number
+        }
+}
+
+
 
 
 export const Grelot_lock = functions.https.onRequest(async (request,response) => {
@@ -99,12 +144,11 @@ export const Grelot_lock = functions.https.onRequest(async (request,response) =>
 
 
 export  const records = functions.https.onRequest(async (request, response) => {
-            let e:member = request.body;
-             const citiesRef =  db.collection(process.env.REACT_APP_VENDORPOST!).doc(e.data);
-             const service =  (await citiesRef.get()).data();
-
-             response.json({
-                message: service
+    let e:member = request.body;
+       const citiesRef =  db.collection(process.env.REACT_APP_VENDORPOST!+"/"+e.User.usertype).doc(e.User.data);
+          const service =  (await citiesRef.get()).data();
+            response.json({
+                message:service
             })
 })
 
@@ -112,18 +156,17 @@ export  const records = functions.https.onRequest(async (request, response) => {
 
 
 
-export  const thumbs = functions.https.onRequest(async (request, response) => {
-       
+export  const reaction_count = functions.https.onRequest(async (request, response) => {
             let e:GetDatas = request.body;
-            const data =  db.collection(process.env.REACT_APP_VENDORPOST!).doc(e.Client.doc_id).collection(process.env.REACT_APP_REACTION!).doc(e.Client.doc_id); 
-             if(!(await data.get()).exists)
-                 data.set(e);
-            else
-                data.update("ClientAction.thumb", firestore.FieldValue.increment(e.ClientAction.thumb))
+              const data =  db.collection(process.env.REACT_APP_VENDORPOST!).doc(e.Client.doc_id).collection(process.env.REACT_APP_REACTION!).doc(e.Client.doc_id); 
+                if(!(await data.get()).exists)
+                    data.set(e);
+                else
+                    data.update("ClientAction.thumb", firestore.FieldValue.increment(e.ClientAction.thumb))
 
-               response.json({
-                message: e.ClientAction.thumb
-            })
+                response.json({
+                    message: e.ClientAction.thumb
+                })
 })
 
 
@@ -132,7 +175,6 @@ export  const thumbs = functions.https.onRequest(async (request, response) => {
 export const listofproducts = functions.https.onRequest(async (request, response) => {
         let list = ['Ad Category','Damax', 'Canvas material', 'Cutain for shirt', 'Cutain for House', 'Bridal satin', 
                     'Douches', 'Tick fringe material', 'Zucuba', 'Lycra', 'Vevelt', 'Crepe','Chiffon',' Stretching  Slik', 'Stretching tafeta','Lace'];
-                     
          response.json({
             message:list
         })
@@ -142,11 +184,9 @@ export const listofproducts = functions.https.onRequest(async (request, response
 
 
 export const listofUserAgeGrade = functions.https.onRequest(async (request, response) => {
-
         let list = ['Target audience','All', 'male',  'female','Both male and female', 'Elderly female','Elderly male','Both Elderly male and female','male kids','female kids','Both kids male and female'];
-
          response.json({
-            message:list
+               message:list
         })
 })
 
@@ -174,18 +214,17 @@ export const Notificationpush = functions.https.onRequest(async (request, respon
 export  const  pushyapi = functions.https.onRequest(async (request, respones) => {
        let e: member = request.body;
        let res;
-       if(e.data  === "1")
-           res = process.env.PUSHY_GRELOT_KEY;
-         respones.json({
-            message: res
-        })
+        if(e.User.data  === "1")
+            res = process.env.PUSHY_GRELOT_KEY;
+            respones.json({
+                message: res
+            })
 })
 
 
 
 
 export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
-     
           let user: Newuser = req.body
              admin.auth()
                     .createUser({
@@ -198,7 +237,7 @@ export const Sign_up_new_user = functions.https.onRequest(async(req,res) => {
                         }).then(async (useRecord) => {
 
                                 user.User.usertoken = useRecord.uid!;
-                                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.uid!);
+                                let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(useRecord.email!);
                                 user.User.doc_id = docs.id;
                                 user.User.password ="N/A"
                                 docs.set(user);
@@ -287,24 +326,19 @@ export const GetUserDetails = functions.https.onRequest(async (req,res) => {
 
 export const Sign_in_user_google = functions.https.onRequest(async(req,res) => {
     let user:ExistingUser = req.body
-       admin.auth()
-            .getUserByEmail(user.User.email)
-                .then(async (record) => {
-                     let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(record.uid)
-                        return  res.json({message: (await docs.get()).exists ? (await docs.get()).data()   :  remove(user,res) })
-                }).catch(err1 => {
-                     return res.json({message: err1 as Error })
-      })
+        let docs = db.collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.usertype).collection(process.env.REACT_APP_REGISTER_NEW_USER_TABLE!).doc(user.User.email)
+             res.json({message:  (await docs.get()).exists ? (await docs.get()).data()  :  remove(user,res) })
+
 })
 
 
 
 async function remove(user: ExistingUser,res: functions.Response<any>) {
-    let operation;
       let use = await admin.auth().getUserByEmail(user.User.email);
-        if(use.email)
-            operation = await admin.auth().deleteUser(use.uid);
- return "Account Doesn't exist !";
+        if(use.email){
+             await admin.auth().deleteUser(use.uid);    
+                    return "Account Doesn't exist !";
+        }
 }
 
 
@@ -312,10 +346,10 @@ async function remove(user: ExistingUser,res: functions.Response<any>) {
 
 
 
-export const  VendorInvest = functions.https.onRequest(async(req,res) => {
-           let e:PaymentModel = req.body
-           //Validate amount token on both client and server
-           const doc_id = db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).doc();
+export const  Addvendorinvestment = functions.https.onRequest(async(req,res) => {
+  let e:PaymentModel = req.body
+    //Validate amount token on both client and server
+        const doc_id = db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).doc();
                doc_id.set(e)
                     .then(response => {
                         return res.json({
@@ -332,18 +366,20 @@ export const  VendorInvest = functions.https.onRequest(async(req,res) => {
 
 
 
-export const  GetVendorInvest = functions.https.onRequest(async(req,res) => {
+export const  GetvendorInvestment = functions.https.onRequest(async(req,res) => {
      let e:PaymentModel = req.body
       admin.auth().getUser(e.UserInvestment.user!)
-                    .then(async (r)=> {
-                        let e:PaymentModel [] = [];
-                         const data = await db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).orderBy("UserInvestment.timestamp","desc").get();
-                           data.forEach((docs:any) => e.push(docs.data()))
-                              return res.json({ message: e})      
-                             }).catch(err => {
-                               return res.json({message: err as Error}) 
-                             })
+        .then(async (r)=> {
+            let e:PaymentModel [] = [];
+                const data = await db.collection(process.env.REACT_APP_VENDOR_INVESTMENT!).orderBy("UserInvestment.timestamp","desc").get();
+                data.forEach((docs:any) => e.push(docs.data()))
+                    return res.json({ message: e})      
+                    }).catch(err => {
+                    return res.json({message: err as Error}) 
+                    })
 });
+
+
 
 
 export const Paid_cart_uploaded = functions.https.onRequest(async(req,res) => {
@@ -352,21 +388,43 @@ export const Paid_cart_uploaded = functions.https.onRequest(async(req,res) => {
 })
 
  
-export const  UserlocationPhoneNumber = functions.https.onRequest(async(req,response) => {         
-        response.json({
+
+
+export const  UserlocationPhoneNumber = functions.https.onRequest(async(req,res) => {         
+        res.json({
             message: process.env.IPDATA!
      })
 })
 
 
 
-export const  DynamicpostRenderPost = functions.https.onRequest(async (req,res) => {
 
-    
+
+
+export const  dynamicpostrender2 = functions.https.onRequest(async (req,res) => {
+   let user:member = req.body
+      let payload:any [] = []; 
+           let list = ['Fabric Dealer','Fashion Designer'];
+             for(let np = 0; np <= list.length; np++){
+                 let  response = await  db.collection(process.env.REACT_APP_ACCESS_FIREBASE_TABLE1+"/"+list[np]).listDocuments();
+                    for(let n = 0; n < response.length; ++n)
+                         payload.push((await response[n].get()).data());
+                    if(np == list.length)
+                       res.json({message: payload})       
+        }     
 })
 
 
 
+
+export const Uploadproducts = functions.https.onRequest(async(req,res) => {
+    let payload:Posts = req.body;
+       const ref = db.collection(process.env.REACT_APP_ACCESS_FIREBASE_TABLE1+"/"+payload.User.usertype).doc();
+         payload.UserPost.doc_id = ref.id;
+            payload.UserPost.timestamp = Date.now();
+              ref.set(payload);
+                 res.json({message:ref.id ? "Uploaded" : "Error occurred !"})
+})
 
 
 

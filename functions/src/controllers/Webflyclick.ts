@@ -54,6 +54,24 @@ type RequestBody = {
 }
 
 
+
+
+
+type  MovieBody = {
+    Mtitle:string,
+    year:number,
+    categories:string,
+    writeUp:string, 
+    fileName:string,
+    likes:number,
+    thumbnail_orentation:number,
+    spin:number,
+    doc_id:string,
+    timestamp:any,
+    downloadcount:number,
+}
+
+
 export const  webdealitAddPost = functions.https.onRequest(async (req,res) => {
          try{
             let e: RequestBody = req.body;
@@ -105,16 +123,15 @@ export const  webdealitGetPostbylink = functions.https.onRequest(async (req,res)
         try{
           const m :RequestBody = req.body;
           let raw_data =  db.collection(process.env.REACT_APP_POST_SECTION!).doc("1A").collection(m.User.useremail).doc(m.UserPost.doc_id_b);
-           res.json({
-            message: (await raw_data.get()).data()
-        })
-
-         }
-          catch (err) { 
-             res.json({
-                message: err as Error
-            })
-        }
+            res.json({
+                  message: (await raw_data.get()).data()
+                })
+          }
+            catch (err) { 
+                res.json({
+                    message: err as Error
+                })
+            }
 })
 
 
@@ -351,19 +368,7 @@ export const webdealit_lock = functions.https.onRequest(async (request,respones)
 
 
 
-type  MovieBody = {
-    Mtitle:string,
-    year:number,
-    categories:string,
-    writeUp:string, 
-    fileName:string,
-    likes:number,
-    thumbnail_orentation:number,
-    spin:number,
-    doc_id:string,
-    timestamp:any,
-    downloadcount:number,
-}
+
 
 
 

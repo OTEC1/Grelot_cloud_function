@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
-import { Grelot_lock, records, thumbs, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, DynamicpostRenderPost,VendorInvest, GetVendorInvest} from "./controllers/Grelot";
+import { Grelot_lock, records, reaction_count, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, Addvendorinvestment, GetvendorInvestment, Uploadproducts,dynamicpostrender2} from "./controllers/Grelot";
 import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,ViewGroup,LoadActiveGroup,LoadInactiveGroup, Group_action, User_action,Voches, Group_Creator_Cancel,Purchase_voches,ExchangeFunds, SignInWithEmail,GenerateRandom} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp, getUserAgent} from "./controllers/Noman";
 import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
@@ -176,21 +176,30 @@ function attachCsrfToken(url:any, cookie:any, value:any) {
 
 Grelot.get("/Grelot_lock",Grelot_lock);
 Grelot.post("/records",records);
-Grelot.post("/thumbs",thumbs);
+Grelot.post("/thumbs",reaction_count);
+
 Grelot.get("/listofproducts",listofproducts);
+Grelot.post("/Paid_cart_uploaded",Paid_cart_uploaded);
+
+
 Grelot.get("/listofUserAgeGrade",listofUserAgeGrade);
 Grelot.post("/pushyapi",pushyapi);
 Grelot.post("/Sign_up_new_user",Sign_up_new_user);
-Grelot.post("/Paid_cart_uploaded",Paid_cart_uploaded);
 Grelot.post("/Notificationpush",Notificationpush);
 Grelot.get("/UserlocationPhoneNumber",UserlocationPhoneNumber);
 Grelot.post("/Sign_in_user_google",Sign_in_user_google);
 Grelot.post("/LoginUser", LoginUser);
 Grelot.post("/GetUserDetails", GetUserDetails);
 Grelot.post("/VerifyUser", VerifyUser);
-Grelot.post("/dynamicpostRender", DynamicpostRenderPost);
-Grelot.post("/VendorInvest",VendorInvest);
-Grelot.post("/GetVendorInvest",GetVendorInvest);
+
+
+Grelot.post("/VendorInvest",Addvendorinvestment);
+Grelot.post("/GetVendorInvest",GetvendorInvestment);
+
+Grelot.post("/dynamicpostRender", dynamicpostrender2);
+Grelot.post("/Uploadproducts",Uploadproducts);
+
+
 exports.Grelot = functions.https.onRequest(Grelot);
 
 

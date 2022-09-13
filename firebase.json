@@ -5,17 +5,28 @@
   },
   "emulators": {
     "functions": {
-      "port": 3172
+      "port": 1011
     },
     "firestore": {
-      "port": 3173
+      "port": 1012
     },
     "ui": {
       "enabled": true,
-      "port": 3174
+      "port": 1013
     },
     "auth": {
-      "port": 3175
+      "port": 1014
+    },
+    "hosting": {
+      "port": 1015
     }
+  },
+  "hosting": {
+    "public": "build",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
   }
 }
