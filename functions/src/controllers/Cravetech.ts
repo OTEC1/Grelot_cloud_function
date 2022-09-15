@@ -459,10 +459,10 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                                     miner_stake: group.miner_stake,
                                     timestamp: group.timestamp,
                                     doc_id: group.doc_id,
-                                    profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0])) : 0,
+                                    profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0],"N")) : 0,
                                     loss: group.loss,
-                                    liquidity: Action(2,group.liquidity,group.amount),
-                                    active:false,
+                                    liquidity: Action(2,group.liquidity,group.amount,"N"),
+                                    active: true,
                                     odd: group.odd
                                  }});  
 
@@ -474,7 +474,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                     //check if group.members_ids.length <= 0  ? run script : continue flow           
                    //check for user account funder (i.e) app or group 
                    //also check for for crediting or debiting or zero group funds at request time.  
-                  if(Action(2,group.profit,profit[0]) !== 0) 
+                  if(Action(2,group.profit,profit[0],"N") !== 0) 
                      UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 5 : 4 ,init !== 2 ? profit[0] : group.amount,group.amount);
                                 
                                  
@@ -549,7 +549,7 @@ async function Debit_account(user:UserNoRequest){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
                 if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
-                    doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas));
+                    doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas,"N"));
                     return true;
                 }else
                     return false;
@@ -644,14 +644,14 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
                                     //withdrawel_node can be group payload
                                     //still needs more check
                                 //check if its for app call or withrawal call for debiting
-                                doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal));
+                                doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
                                     if(credit_node === 5)
-                                       doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas));
+                                       doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
                                     return res.json({message:messages})
                             }else
                                 if(i ===  2){ //still needs more check   
                                     //check if its for app call or group call for crediting
-                                    doc_.update("User_details.gas",  credit_node !== 4 ?  Action(2,adata.debit,data.User_details.gas) : Action(1,withdrawel_node,data.User_details.gas));
+                                    doc_.update("User_details.gas",  credit_node !== 4 ?  Action(2,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
                                     return res.json({message:messages})
                                 }
                      }else 
@@ -780,7 +780,7 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                                                         user.User.profit = 0;
                                                         user.User.loss = 0;
                                                         m.set(user);
-                                                          docs.update("User_details.gas",Action(2,user.User.amount,da.User_details.gas));
+                                                          docs.update("User_details.gas",Action(2,user.User.amount,da.User_details.gas,"N"));
                                                              DeactiveAccout(use.uid,1,"",res);
                                                             if(m.id)
                                                                 res.json({message: `Group ${user.User.groupName} created`})
@@ -833,11 +833,11 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                 {
                                                     grouplist.push(user.User.user_id);
                                                        creator.update("User.members_ids",grouplist);
-                                                             creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount));
-                                                                 account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas));
+                                                             creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount,"N"));
+                                                                 account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas,"N"));
                                                                       let j =  account.collection(process.env.REACT_APP_JOINED_GROUP!).doc();
                                                                               j.set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,doc_id:Groupcheck.User.doc_id,ref_id:j.id,email:user.User.creator_email}});
-                                                                              if(Groupcheck.User.liquidator_size === grouplist.length)
+                                                                              if(Groupcheck.User.liquidator_size.toString() === grouplist.length.toString())
                                                                                        creator.update("User.active",true);    
                                                                                          UpdateUsersNodes(grouplist,creator.id);
                                                                                             res.json({message:"You have been accepted"});           
@@ -914,18 +914,6 @@ async function innerLoop(raw2: any[]): Promise<any>{
 
 
 
-export const ViewGroup = functions.https.onRequest(async (req,res) => {
-      let m:GroupStatus = req.body;
-         if(await Isvalid(m.User,res,req)){
-                let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.email).collection(m.User.email+"_stakes").doc(m.User.doc_id)
-                    res.json({message: (await group.get()).data()})
-          }
-})
-
-
-
-
-
 
 export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
         let m: GroupWithdrawal = req.body;
@@ -940,6 +928,8 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                  LoopForGroups(list,res,docs,1); 
         }
 })
+
+
 
 
 
@@ -1443,13 +1433,13 @@ function Looper(credit:any){
 
 
 
-function Action(id:any,acct:any,bal:any):any{
-    let e = 0;
+function Action(id:any,acct:any,bal:any,u:string):any{
+    let e:any = 0;
      if(id === 1)
          e = acct  + bal;
        else
            e = acct - bal; 
-return  parseFloat(e.toString().includes("-") ? e.toString().replace("-","") : e.toString());      
+return u === "F" ? parseFloat(e.toString().includes("-") ? e.toString().replace("-","") : e) :  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e) 
 } 
 
 
