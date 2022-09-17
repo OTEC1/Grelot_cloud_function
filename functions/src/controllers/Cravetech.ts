@@ -313,10 +313,10 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
                                 if(answer_lists.length === 5)                  
                                       UpdateUserAccount(res,user,1,"You won this stage",undefined,3,0,0); 
                                 else
-                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined,3,0,0);
+                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0);
                         }
                         else
-                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right !",undefined,3,0,0); 
+                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0); 
                     }
 
                 }catch(err){
@@ -383,7 +383,7 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 
 
 
-export const Group_Creator_Cancel = functions.https.onRequest(async (req,res) => {
+export const creator_cancel = functions.https.onRequest(async (req,res) => {
     try{
          let user:GroupCreation = req.body;
           if(await Isvalid(user.User,res,req)){
@@ -462,7 +462,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                                     profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0],"N")) : 0,
                                     loss: group.loss,
                                     liquidity: Action(2,group.liquidity,group.amount,"N"),
-                                    active: true,
+                                    active: false,
                                     odd: group.odd
                                  }});  
 
@@ -569,7 +569,7 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                 indopotency = true;
             }
         if(!indopotency){
-              list.unshift({m1:"Sorry you didn't win this stage !",m2:ran});
+              list.unshift({m1:"Sorry you didn't win this stage ",m2:ran});
             return res.json({message:list})
         }
     }
@@ -585,7 +585,7 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
                     indopotency = true;
                  }
         if(!indopotency) {//check for rough request
-                  list.unshift({m1:"Sorry you didn't win this stage !",m2:lucky[bet]})
+                  list.unshift({m1:"Sorry you didn't win this stage ",m2:lucky[bet]})
                return res.json({message:list}) 
         }
             
@@ -761,7 +761,7 @@ async function UniqueList(max:number){
 export const GroupCreate = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
-    // if(await Isvalid(user.User,res,req)){
+     if(await Isvalid(user.User,res,req)){
            sec_admin.getUser(user.User.user_id)
             .then(async (use) => {
                     let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email)
@@ -800,7 +800,7 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                     .catch(err => {
                         res.json({message: err})
                 })
-        //}    
+        }    
 })
 
 
@@ -820,24 +820,24 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                          if((await creator.get()).exists){
 
                            let Usercheck:any = CheckForNode((await account.get()).data());
-                             let Groupcheck:any = CheckForNode((await creator.get()).data());
+                             let groupcheck:any = CheckForNode((await creator.get()).data());
 
-                             for(let m = 0; m < Groupcheck.User.members_ids.length; m++)
-                                  grouplist.push(Groupcheck.User.members_ids[m]);
+                             for(let m = 0; m < groupcheck.User.members_ids.length; m++)
+                                  grouplist.push(groupcheck.User.members_ids[m]);
 
-                               if(Groupcheck.User.members_ids.length <= Groupcheck.User.liquidator_size)
+                               if(groupcheck.User.members_ids.length <= groupcheck.User.liquidator_size)
                                    {
-                                    if(Usercheck.User_details.gas > Groupcheck.User.amount)
+                                    if(Usercheck.User_details.gas > groupcheck.User.amount)
                                         {
-                                           if(!Groupcheck.User.members_ids.includes(user.User.user_id))
+                                           if(!groupcheck.User.members_ids.includes(user.User.user_id))
                                                 {
                                                     grouplist.push(user.User.user_id);
                                                        creator.update("User.members_ids",grouplist);
-                                                             creator.update("User.liquidity",Action(1,Groupcheck.User.liquidity,Groupcheck.User.amount,"N"));
-                                                                 account.update("User_details.gas",Action(2,Groupcheck.User.amount,Usercheck.User_details.gas,"N"));
-                                                                      let j =  account.collection(process.env.REACT_APP_JOINED_GROUP!).doc();
-                                                                              j.set({User:{timestamp:Groupcheck.User.timestamp, members_ids:grouplist, groupName:Groupcheck.User.groupName,doc_id:Groupcheck.User.doc_id,ref_id:j.id,email:user.User.creator_email}});
-                                                                              if(Groupcheck.User.liquidator_size.toString() === grouplist.length.toString())
+                                                             creator.update("User.liquidity",Action(1,parseInt(groupcheck.User.liquidity),groupcheck.User.amount,"N"));
+                                                                 account.update("User_details.gas",Action(2,groupcheck.User.amount,Usercheck.User_details.gas,"N"));
+                                                                        let j = account.collection(process.env.REACT_APP_JOINED_GROUP!).doc();
+                                                                              j.set({User:{timestamp:groupcheck.User.timestamp, members_ids:grouplist, groupName:groupcheck.User.groupName,doc_id:groupcheck.User.doc_id,ref_id:j.id,email:user.User.creator_email}});
+                                                                               if(groupcheck.User.liquidator_size.toString() === grouplist.length.toString())
                                                                                        creator.update("User.active",true);    
                                                                                          UpdateUsersNodes(grouplist,creator.id);
                                                                                             res.json({message:"You have been accepted"});           
@@ -1433,13 +1433,13 @@ function Looper(credit:any){
 
 
 
-function Action(id:any,acct:any,bal:any,u:string):any{
+function Action(id:any,acct:any,bal:any,u:string):number{
     let e:any = 0;
      if(id === 1)
          e = acct  + bal;
        else
-           e = acct - bal; 
-return u === "F" ? parseFloat(e.toString().includes("-") ? e.toString().replace("-","") : e) :  parseInt(e.toString().includes("-") ? e.toString().replace("-","") : e) 
+           e = acct - bal;        
+    return u === "F" ? e.toString().includes("-") ? parseFloat(e.toString().replace("-","")) : parseFloat(e)  :  e.toString().includes("-") ? parseInt(e.toString().replace("-","")) : parseInt(e) 
 } 
 
 
@@ -1448,10 +1448,10 @@ return u === "F" ? parseFloat(e.toString().includes("-") ? e.toString().replace(
 
 function Divide(users: any[], amount:number):any[]{
     let sum = [];
-    sum.push(Math.floor(amount/users.length));
-    let  rem = amount%users.length;
-       if(rem.toString() !== "0")
-            sum.push(Math.floor(rem));
+    let s = users.length;
+    sum.push(Math.floor(amount/s));
+       if(amount%s!== 0)
+            sum.push(Math.floor(amount%s));
         return sum;
 }
 
