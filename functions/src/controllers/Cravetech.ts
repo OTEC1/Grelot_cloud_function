@@ -33,6 +33,8 @@ type Register = {
 }
 
 
+
+
 type GroupWithdrawal = {
     User:{
         doc_id:string,
@@ -42,6 +44,20 @@ type GroupWithdrawal = {
     }
 }
 
+
+
+type GroupUser = {
+    User:{
+        email:string,
+        IMEI:string,
+        user_id:string,
+        group_id:string,
+        group_mail:string,
+        hour:number,
+        bot_size:number,
+        doc_id:string
+    }
+}
 
 
 type Withdrawals = {
@@ -103,11 +119,11 @@ type UserNoRequest = {
         user_id:string,
         email:string,
         IMEI:string,
-        isGroup:false,
-        isUser:false,
-        isBot:false,
-        creator:[],
-        user_selected:[],
+        isGroup:boolean,
+        isUser:boolean,
+        isBot:boolean,
+        creator:any[],
+        user_selected:any[],
         creator_id:string,
         doc_id:string
     }
@@ -126,15 +142,7 @@ type CheckUserStat = {
 }
 
 
-type GroupStatus = {
-    User:{
-        email:string,
-        IMEI:string,
-        user_id:string,
-        doc_id:string,
-        creator_email:string
-    }
-}
+
 
 type QuestionObj = {
     sessionID :string,
@@ -163,8 +171,8 @@ type Qs = {
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
         let user: Register = req.body
-           if(MACHINE_CHECK(req)){
-                        sec_admin.createUser({ 
+           //if(MACHINE_CHECK(req)){
+                        admin.auth().createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
                                         password:user.User.password,
@@ -178,7 +186,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                                 user.User_details.gas = 0;
                                                 user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
                                                     if(await REMOVENODE(null,2,db,record.email)){
-                                                         if(await REMOVENODE(user,1,db_sec,record.email))
+                                                         if(await REMOVENODE(user,1,db,record.email))
                                                            return res.json({message: "Account created"})
                                                     }else
                                                         return res.json({message: "Account wasn't created !"});
@@ -189,8 +197,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                         }).catch((err => {
                                             return  res.json({message: err as Error })
                                     }))
-                    }else
-                        Cancel([],res);
+                    // }else
+                    //     Cancel([],res);
                 }catch(err){
                     res.json({ message: err as Error})
          }
@@ -327,21 +335,55 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 
+export const CloudHandler = functions.https.onRequest(async (req,res) => {
+        //loop for list of live runner and execute !
+        const array:any  [] =  [];
+          let  account = await db.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
+            if(account.length > 0){
+                for(let n = 0; n < account.length; ++n)
+                    array.push((await account[n].get()).data());    
+
+                    if(array.length == account.length && account.length <= 100)
+                        for(let e=0; e < array.length; e++)
+                                IgniteUser({User:{email:array[e].User.email,user_id:array[e].User.user_id,IMEI:array[e].User.doc_id,creator:SendOff([],100, 1),doc_id:array[e].User.group_id,creator_id:array[e].User.group_mail,isBot:true,isGroup:true,isUser:false,user_selected:SendOff([],100, array[e].User.bot_size)}} ,res)
+                    else
+                         res.json({message: "No available spot pls try again later !"})
+            }
+              else 
+                  res.json({message: "Zero Live Stake !"})   
+              
+})
 
 
 
-export const  Group_action = functions.https.onRequest(async (req,res) => {
+
+export const AddHandler = functions.https.onRequest(async (req,res) => {
+    let user:GroupUser = req.body;
+        //if(await Isvalid(user.User,res,req)){
+            let  account = db.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(); 
+                user.User.doc_id = account.id;
+                  account.set(user);
+                    if(account.id && user.User.bot_size <=6)
+                        res.json({message: "Spot added !"})
+                    else
+                        DeactiveAccout(user.User.user_id,"Invalid request last warning",res);
+        //}
+});
+
+
+
+
+
+
+export const  bot_mine = functions.https.onRequest(async (req,res) => {
     let list:any = [] 
     let user:UserNoRequest = req.body;
-    if(await Isvalid(user.User,res,req)){
-        if(user.User.isGroup && user.User.isBot && user.User.creator.length <= 0)
-            res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
-         else  
-             if(user.User.isGroup && user.User.isBot && user.User.creator.length > 0) 
-                    console.log()
-
-    }
+      if(await Isvalid(user.User,res,req))
+           IgniteUser(user,res);
 })
+
+
+
 
 
 
@@ -351,9 +393,11 @@ let list = [{serial:987654569,mode:"regular",amount:5},
              {serial:765436789,mode:"whip",amount:25},
              {serial:87654569,mode:"semi whip",amount:35},
              {serial:54309823,mode:"chief whip",amount:45},
-             {serial:74512575,mode:"gold",amount:50},
-             {serial:19812575,mode:"premium",amount:75}
-            ];
+             {serial:74512575,mode:"silver",amount:50},
+             {serial:19812575,mode:"gold",amount:75},
+             {serial:19892574,mode:"premium",amount:100}];
+
+
 
 export const Voches = functions.https.onRequest(async (req,res) => {
       let user:GroupWithdrawal = req.body;
@@ -361,6 +405,26 @@ export const Voches = functions.https.onRequest(async (req,res) => {
                 res.json({message:list})
          
 })
+
+
+
+
+export const purchasevoches = functions.https.onRequest(async (req,res) => {
+    let reply = false;
+    let user:Purchase = req.body;
+        if(await Isvalid(user.User,res,req))
+                for(let m = 0; m < list.length; m++)
+                     if(user.User.serial === list[m].serial)
+                            reply = true;
+            
+        if(reply)
+            console.log();
+            //Paystack
+        else
+            DeactiveAccout(user.User.user_id,"Invalid request warning ",res);
+})
+
+
 
 
 
@@ -372,10 +436,10 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                         let m:any = CheckForNode((await account.get()).data());
                             let group:any = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.email).collection(m.User.email+"_stakes").doc(m.User.doc_id);
                                 let filter:any = CheckForNode((await group.get()).data()); 
-                                     DeactiveAccout(user.User.user_id,1,"",res);
+                                     DeactiveAccout(user.User.user_id,"",res);
                                         RunFun(filter,user,group,account,res,m.User.doc_id);
                          }else
-                            DeactiveAccout(user.User.user_id,0,"Invalid request last warning !",res);
+                            DeactiveAccout(user.User.user_id,"Invalid request last warning !",res);
                 }
         }
 )
@@ -391,12 +455,12 @@ export const creator_cancel = functions.https.onRequest(async (req,res) => {
                  if((await group.get()).exists){
                     let filter:any = CheckForNode((await group.get()).data());
                             if(filter.User.members_ids[0].toString() === user.User.user_id){
-                                DeactiveAccout(user.User.user_id,1,"",res);
+                                DeactiveAccout(user.User.user_id,"",res);
                                   RunFun(filter,user,group,filter.User.members_ids.length <= 0  ?  group : null, res,null);
                             }else
-                                DeactiveAccout(user.User.user_id,0,"Permission denied last warning !",res);
+                                DeactiveAccout(user.User.user_id,"Permission denied last warning !",res);
                     }else
-                        DeactiveAccout(user.User.user_id,0,"Group doesn't exist last warning",res);
+                        DeactiveAccout(user.User.user_id,"Group doesn't exist last warning",res);
                 }
         }catch(err ){
             res.json({message: err as Error})
@@ -408,31 +472,9 @@ export const creator_cancel = functions.https.onRequest(async (req,res) => {
 
 
 
-
-
-export const purchasevoches = functions.https.onRequest(async (req,res) => {
-    let reply = false;
-    let user:Purchase = req.body;
-        if(await Isvalid(user.User,res,req))
-                for(let m = 0; m < list.length; m++)
-                     if(user.User.serial === list[m].serial)
-                            reply = true;
-            
-        if(!reply)
-            console.log();
-            //Paystack
-        else
-            res.json({message: "Invalid Vochce"}) //warning script
-})
-
-
-
-
-
-
 function RunFun(filter:any, user:any, group:any, account:any, res:functions.Response<any>, doc: any) {
     if(loopuser(filter.User.members_ids, user.User.user_id)){
-          DeactiveAccout(user.User.user_id,1,"",res);
+          DeactiveAccout(user.User.user_id,"",res);
            if(Divide(filter.User.members_ids,filter.User.profit)[0] !== 0)
                 SendOutFunds(Platform(Divide(filter.User.members_ids, filter.User.profit)), filter.User,user,res,group,account,1,doc);    
             else{
@@ -440,7 +482,7 @@ function RunFun(filter:any, user:any, group:any, account:any, res:functions.Resp
                   res.json({message: "No profit at this time left anyway !"}); 
             }
        }else
-            DeactiveAccout(user.User.user_id,0,"You are not a valid member last warning !",res);
+            DeactiveAccout(user.User.user_id,"You are not a valid member last warning !",res);
 }
 
 
@@ -459,9 +501,9 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                                     miner_stake: group.miner_stake,
                                     timestamp: group.timestamp,
                                     doc_id: group.doc_id,
-                                    profit: init !== 2 ? Math.floor(Action(2,group.profit,profit[0],"N")) : 0,
+                                    profit: init !== 2 ? Math.floor(Action(0,profit[0],group.profit,"N")) : 0,
                                     loss: group.loss,
-                                    liquidity: Action(2,group.liquidity,group.amount,"N"),
+                                    liquidity: Action(0,group.liquidity,group.amount,"N"),
                                     active: false,
                                     odd: group.odd
                                  }});  
@@ -474,7 +516,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                     //check if group.members_ids.length <= 0  ? run script : continue flow           
                    //check for user account funder (i.e) app or group 
                    //also check for for crediting or debiting or zero group funds at request time.  
-                  if(Action(2,group.profit,profit[0],"N") !== 0) 
+                  if(Action(0,group.profit,profit[0],"N") !== 0) 
                      UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 5 : 4 ,init !== 2 ? profit[0] : group.amount,group.amount);
                                 
                                  
@@ -513,7 +555,7 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
     let user:UserNoRequest =  req.body;
       if(await Isvalid(user.User,res,req)){
          if(user.User.isUser && user.User.user_selected.length > 0){
-              if(await Debit_account(user))
+              if(await Debit_account(user,1))
                  caclulate(res,user,getRandom(100),[],[],1);
                  else{
                     list.push({m1: "Insufficient funds pls purchase gas !"})
@@ -521,7 +563,7 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
                 }
          }else 
             if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
-                if(await Debit_account(user))
+                if(await Debit_account(user,1))
                       res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),12)})
                  else{
                     list.push({m1: "Insufficient funds pls purchase gas !"})
@@ -530,7 +572,7 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
          }
          else
             if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
-              if(await Debit_account(user))
+              if(await Debit_account(user,1))
                  caclulate(res,user,0,user.User.creator,user.User.user_selected,2);
             else{
                  list.push({m1: "Insufficient funds pls purchase gas !"})
@@ -542,23 +584,24 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
 
 
 
-async function Debit_account(user:UserNoRequest){
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-      let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-          if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+async function Debit_account(user:UserNoRequest,node:number){
+    let doc_ = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+        let admindoc = db.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+            if((await doc_.get()).exists){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
-                if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
-                    doc_.update("User_details.gas", Action(2,adata.debit,data.User_details.gas,"N"));
-                    return true;
-                }else
-                    return false;
-        }
+                    if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
+                       doc_.update("User_details.gas", Action(0,adata.debit,data.User_details.gas,"N"));
+                          return true;
+                        }
+                         else
+                            return false;
+                    }
 }
 
 
 
-function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
+async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
     let list = [];
     let indopotency = false;
     if(i === 1){
@@ -587,14 +630,62 @@ function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,
         if(!indopotency) {//check for rough request
                   list.unshift({m1:"Sorry you didn't win this stage ",m2:lucky[bet]})
                return res.json({message:list}) 
-        }
-            
-              
+        }     
     }
     else
-        res.json({message: "Invalid data !"}) //disable & freeze funds account 
+        if(i === 3){
+
+            let groupnode = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_id).collection(user.User.creator_id+"_stakes").doc(user.User.doc_id);
+            let usernode =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+            let gbal:any = CheckForNode((await groupnode.get()).data());
+            let ubal:any = CheckForNode((await usernode.get()).data());
+
+              for(let d = 0; d < user.User.user_selected.length; d++)
+                 if(ubal.User_details.gas > 0){
+                    if(gbal.User.liquidity > Action(3,gbal.User.odd,gbal.User.miner_stake,"N")){
+                       if(user.User.user_selected[d] === user.User.creator[0]){
+                          let e = Action(0,gbal.User.odd,gbal.User.miner_stake,"N");
+                            groupnode.update("User.loss",e+gbal.User.loss);
+                                usernode.update("User_details.bal",Looper(Action(3,gbal.User.odd,gbal.User.miner_stake,"N"))+ubal.User_details.bal);
+                                   groupnode.update("User.liquidity",Action(0,gbal.User.liquidity,e,"N"));
+                                }else{
+                                      usernode.update("User_details.gas",Action(0,gbal.User.miner_stake,ubal.User_details.gas,"N"));
+                                        groupnode.update("User.profit",Action(1,gbal.User.profit,gbal.User.miner_stake,"N"));
+                                }
+                                  res.json({message: "ok"})
+                            }else
+                                res.json({message: "Drop group"})
+                        }else{
+                              db.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(user.User.IMEI).delete(); 
+                              res.json({message: "Dropped user stake"})
+                        }
+                          //drop group caculate leftover and divide and prevent further exchange from nodes
+        }
+        else
+            DeactiveAccout(user.User.user_id,"Invalid data !",res);
 }
 
+
+
+
+// >  {
+// >    User: {
+// >      email: 'sting2@gmail.com',
+// >      user_id: 'sVcfplqTStLKKaD5y3wm7F4pbgH8',
+// >      IMEI: 'n/a',
+// >      creator: [
+// >        63, 11, 38, 60, 40,
+// >        47, 48, 75, 97,  5,
+// >        57, 88
+// >      ],
+// >      creator_id: 'string1@gmail.com',
+// >      doc_id: 'W4rlBgVRPq6DvURIVkDl',
+// >      isBot: true,
+// >      isGroup: true,
+// >      isUser: false,
+// >      user_selected: [ 78, 92 ]
+// >    }
+// >  }
 
 
 
@@ -614,10 +705,6 @@ async function Account(res: functions.Response<any>, user: UserNoRequest,i:numbe
                       }
              }
 }
-
-
-
-
 
 
 
@@ -651,7 +738,7 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
                             }else
                                 if(i ===  2){ //still needs more check   
                                     //check if its for app call or group call for crediting
-                                    doc_.update("User_details.gas",  credit_node !== 4 ?  Action(2,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
+                                    doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
                                     return res.json({message:messages})
                                 }
                      }else 
@@ -761,13 +848,13 @@ async function UniqueList(max:number){
 export const GroupCreate = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
-     if(await Isvalid(user.User,res,req)){
-           sec_admin.getUser(user.User.user_id)
+     //if(await Isvalid(user.User,res,req)){
+           admin.auth().getUser(user.User.user_id)
             .then(async (use) => {
-                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email)
+                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(use.email!)
                        const da:any = CheckForNode((await docs.get()).data());
                              if(da.User_details.gas > user.User.amount){
-                                  let m =  docs.collection(user.User.email+"_stakes").doc()
+                                  let m =  docs.collection(use.email+"_stakes").doc()
                                   user.User.doc_id = m.id;
                                     members.unshift(user.User.user_id);
                                       user.User.timestamp = Date.now();
@@ -776,23 +863,23 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                                             if(user.User.liquidity < user.User.amount){
                                                     user.User.liquidity = user.User.amount;
                                                     user.User.active = user.User.liquidator_size === 1 ? true : false
-                                                    if(user.User.profit === 0 && user.User.loss === 0){
-                                                        user.User.profit = 0;
-                                                        user.User.loss = 0;
-                                                        m.set(user);
-                                                          docs.update("User_details.gas",Action(2,user.User.amount,da.User_details.gas,"N"));
-                                                             DeactiveAccout(use.uid,1,"",res);
-                                                            if(m.id)
-                                                                res.json({message: `Group ${user.User.groupName} created`})
-                                                            else
-                                                                res.json({message: `Group ${user.User.groupName} creation failed !`})
-                                                        }else
-                                                            DeactiveAccout(use.uid,0,"Invalid request do not try this again",res);
-                                                }else
-                                                    DeactiveAccout(use.uid,0,"Invalid request do not try this again",res);
+                                                      if(user.User.profit === 0 && user.User.loss === 0){
+                                                            user.User.profit = 0;
+                                                            user.User.loss = 0;
+                                                            m.set(user);
+                                                            docs.update("User_details.gas",Action(0,user.User.amount,da.User_details.gas,"N"));
+                                                                DeactiveAccout(use.uid,"",res);
+                                                                if(m.id)
+                                                                    res.json({message: `Group ${user.User.groupName} created`})
+                                                                else
+                                                                    res.json({message: `Group ${user.User.groupName} creation failed !`})
+                                                            }else
+                                                                DeactiveAccout(use.uid,"Invalid request do not try this again",res);
+                                                    }else
+                                                        DeactiveAccout(use.uid,"Invalid request do not try this again",res);
                                             }
                                             else
-                                                 DeactiveAccout(use.uid,0,"Invalid request do not try this again",res);
+                                                 DeactiveAccout(use.uid,"Invalid request do not try this again",res);
                                   }else
                                      res.json({message: "Insufficient funds pls purchase gas !"})
                                   
@@ -800,7 +887,7 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                     .catch(err => {
                         res.json({message: err})
                 })
-        }    
+       // }    
 })
 
 
@@ -814,9 +901,9 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
         try{
             let  user: UserRequest = req.body;
               let grouplist:any [] = [];
-                 if(await Isvalid(user.User,res,req)){
-                    let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-                        let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
+                 //if(await Isvalid(user.User,res,req)){
+                    let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+                        let creator =   db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
 
                            let Usercheck:any = CheckForNode((await account.get()).data());
@@ -834,7 +921,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                     grouplist.push(user.User.user_id);
                                                        creator.update("User.members_ids",grouplist);
                                                              creator.update("User.liquidity",Action(1,parseInt(groupcheck.User.liquidity),groupcheck.User.amount,"N"));
-                                                                 account.update("User_details.gas",Action(2,groupcheck.User.amount,Usercheck.User_details.gas,"N"));
+                                                                 account.update("User_details.gas",Action(0,groupcheck.User.amount,Usercheck.User_details.gas,"N"));
                                                                         let j = account.collection(process.env.REACT_APP_JOINED_GROUP!).doc();
                                                                               j.set({User:{timestamp:groupcheck.User.timestamp, members_ids:grouplist, groupName:groupcheck.User.groupName,doc_id:groupcheck.User.doc_id,ref_id:j.id,email:user.User.creator_email}});
                                                                                if(groupcheck.User.liquidator_size.toString() === grouplist.length.toString())
@@ -851,7 +938,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                             }
                             else
                                res.json({message: "Group doesn't exists !"})
-                  }
+                  //}
            }catch(err){
               res.json({message: err as Error})
         }
@@ -906,8 +993,7 @@ async function innerLoop(raw2: any[]): Promise<any>{
                                 }}
                       raw.push(e);
             }
-            return raw;
-           
+            return raw;  
 }
 
 
@@ -925,7 +1011,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                         let u:any = CheckForNode(doc.data());
                           list.push(u.User.email);
                  })        
-                 LoopForGroups(list,res,docs,1); 
+                   LoopForGroups(list,res,docs,1); 
         }
 })
 
@@ -1366,7 +1452,7 @@ function Remove(members_ids: any[], doc:String):any [] {
 
 
 
-async function UseraccountActive(user_id: any,res: functions.Response<any>) {
+async function UseraccountActive(user_id:any,res:functions.Response<any>) {
      let user = await sec_admin.getUser(user_id);
         if(!user.disabled)
             return true;
@@ -1378,12 +1464,15 @@ async function UseraccountActive(user_id: any,res: functions.Response<any>) {
 
 
 
-async function DeactiveAccout(user_id:string, init:number, msg:string, res:functions.Response<any>){
-    let doc = db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user_id);  
-        if(!(await doc.get()).exists && init === 0)
+
+
+
+async function DeactiveAccout(user_id:string, msg:string, res:functions.Response<any>){
+    let doc = db.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user_id);  
+        if(!(await doc.get()).exists && msg.trim().length <= 0)
              doc.set({User:{count:1}});
         else
-            if((await doc.get()).exists && init === 0)
+            if((await doc.get()).exists && msg.trim().length > 0)
                   doc.update({User:{count:2}});
 
         if((await doc.get()).exists)
@@ -1398,7 +1487,7 @@ async function DeactiveAccout(user_id:string, init:number, msg:string, res:funct
 
 async function QuickCheck(user_id:string, ms: string, res: functions.Response<any>,doc:any){
         if((await doc.get()).exists && checkstats((await doc.get()).data()))
-              sec_admin.updateUser(user_id,{disabled:true});
+              admin.auth().updateUser(user_id,{disabled:true});
         ms.length > 0 ?  (await admin.auth().getUser(user_id)).disabled ? res.json({message:"Your account has been disabled !"}) :  res.json({message:ms}) : null
         
 };
@@ -1424,7 +1513,7 @@ function Looper(credit:any){
                     count = 0;
                 }
          if(m === credit-1){
-             store = amount >= 5 ? store+1 : store
+             store = amount >= 5 ? store+.5 : store
             return store;
         }
     }
@@ -1435,10 +1524,15 @@ function Looper(credit:any){
 
 function Action(id:any,acct:any,bal:any,u:string):number{
     let e:any = 0;
-     if(id === 1)
+     if(id == 1)
          e = acct  + bal;
        else
-           e = acct - bal;        
+          if(id == 0)
+             e = acct - bal;  
+    else
+      if(id == 3)
+         e = acct * bal; 
+             
     return u === "F" ? e.toString().includes("-") ? parseFloat(e.toString().replace("-","")) : parseFloat(e)  :  e.toString().includes("-") ? parseInt(e.toString().replace("-","")) : parseInt(e) 
 } 
 
@@ -1478,6 +1572,21 @@ function loopuser(users: any[],user:any){
 
 function Collector(user_id: any, profit: number) {
     console.log("Store"+ profit)
+}
+
+
+
+//if(await Debit_account(user,0))
+
+async function IgniteUser(user:any,res:functions.Response<any>){
+    if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length <= 0 )
+            res.json({message: SendOff([],parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
+         else  
+             if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length > 0) 
+                       caclulate(res,user,0,user.User.creator,user.User.user_selected,3);
+                      else
+                            res.json({message: [{m1: "Insufficient funds pls purchase gas !"}]})
+                
 }
 
 
