@@ -336,24 +336,53 @@ export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
 
 
 export const CloudHandler = functions.https.onRequest(async (req,res) => {
-        //loop for list of live runner and execute !
-        const array:any  [] =  [];
-          let  account = await db.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
-            if(account.length > 0){
-                for(let n = 0; n < account.length; ++n)
-                    array.push((await account[n].get()).data());    
+ //loop for list of live runner and execute !
+    let  account = await db.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
+        if(account.length > 0 &&  account.length <= 100){
+            for(let n = 0; n < account.length; n++){
+                 let p:any = CheckForNode((await account[n].get()).data()); 
+                        //if check for user bal > 0
+                        //check for group liquidty
+                        //if check for user hand made stake group fund capacity
 
-                    if(array.length == account.length && account.length <= 100)
-                        for(let e=0; e < array.length; e++)
-                                IgniteUser({User:{email:array[e].User.email,user_id:array[e].User.user_id,IMEI:array[e].User.doc_id,creator:SendOff([],100, 1),doc_id:array[e].User.group_id,creator_id:array[e].User.group_mail,isBot:true,isGroup:true,isUser:false,user_selected:SendOff([],100, array[e].User.bot_size)}} ,res)
-                    else
-                         res.json({message: "No available spot pls try again later !"})
-            }
-              else 
-                  res.json({message: "Zero Live Stake !"})   
-              
+                    let g:any = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.group_mail).collection(p.User.group_mail+"_stakes").doc(p.User.group_id);
+                      let u = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.email);
+                        let q:any = CheckForNode((await u.get()).data());
+                          let w:any = CheckForNode((await g.get()).data());
+
+                       if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
+                           g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N"));
+                             g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
+                               u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N")));
+                        }else{
+                             g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
+                               u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
+                        }
+                            
+                    }
+                       res.json({message: "ok"})
+                }else
+                    res.json({message: "No available spot pls try again later !"})
+  
 })
 
+
+
+// let groupnode = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_id).collection(user.User.creator_id+"_stakes").doc(user.User.doc_id);
+             
+// let userDc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+// let ms = CheckForNode((await userDc.get()).data)
+
+           
+// console.log(user)
+// res.json({m:"ok"})
+
+
+
+// if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length > 0) 
+// caclulate(res,user,0,[],[],3);
+// else
+//      res.json({message: [{m1: "Insufficient funds pls purchase gas !"}]})
 
 
 
@@ -376,10 +405,10 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
 
 
 export const  bot_mine = functions.https.onRequest(async (req,res) => {
-    let list:any = [] 
     let user:UserNoRequest = req.body;
       if(await Isvalid(user.User,res,req))
-           IgniteUser(user,res);
+           if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length <= 0 )
+               res.json({message: SendOff([],parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
 })
 
 
@@ -601,6 +630,10 @@ async function Debit_account(user:UserNoRequest,node:number){
 
 
 
+
+
+
+
 async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
     let list = [];
     let indopotency = false;
@@ -632,35 +665,6 @@ async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:n
                return res.json({message:list}) 
         }     
     }
-    else
-        if(i === 3){
-
-            let groupnode = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_id).collection(user.User.creator_id+"_stakes").doc(user.User.doc_id);
-            let usernode =  db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-            let gbal:any = CheckForNode((await groupnode.get()).data());
-            let ubal:any = CheckForNode((await usernode.get()).data());
-
-              for(let d = 0; d < user.User.user_selected.length; d++)
-                 if(ubal.User_details.gas > 0){
-                    if(gbal.User.liquidity > Action(3,gbal.User.odd,gbal.User.miner_stake,"N")){
-                       if(user.User.user_selected[d] === user.User.creator[0]){
-                          let e = Action(0,gbal.User.odd,gbal.User.miner_stake,"N");
-                            groupnode.update("User.loss",e+gbal.User.loss);
-                                usernode.update("User_details.bal",Looper(Action(3,gbal.User.odd,gbal.User.miner_stake,"N"))+ubal.User_details.bal);
-                                   groupnode.update("User.liquidity",Action(0,gbal.User.liquidity,e,"N"));
-                                }else{
-                                      usernode.update("User_details.gas",Action(0,gbal.User.miner_stake,ubal.User_details.gas,"N"));
-                                        groupnode.update("User.profit",Action(1,gbal.User.profit,gbal.User.miner_stake,"N"));
-                                }
-                                  res.json({message: "ok"})
-                            }else
-                                res.json({message: "Drop group"})
-                        }else{
-                              db.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(user.User.IMEI).delete(); 
-                              res.json({message: "Dropped user stake"})
-                        }
-                          //drop group caculate leftover and divide and prevent further exchange from nodes
-        }
         else
             DeactiveAccout(user.User.user_id,"Invalid data !",res);
 }
@@ -1576,25 +1580,13 @@ function Collector(user_id: any, profit: number) {
 
 
 
-//if(await Debit_account(user,0))
-
-async function IgniteUser(user:any,res:functions.Response<any>){
-    if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length <= 0 )
-            res.json({message: SendOff([],parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
-         else  
-             if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length > 0) 
-                       caclulate(res,user,0,user.User.creator,user.User.user_selected,3);
-                      else
-                            res.json({message: [{m1: "Insufficient funds pls purchase gas !"}]})
-                
-}
-
-
 
 
 async function REMOVENODE(user:any, n:number, dual_db:any, record:any) {
    return  (await dual_db.collection(process.env.REACT_APP_USER_DB!).doc(record).set(n === 1 ? user : {User:{email:record}})).writeTime;
 }
+
+
 
 
 
