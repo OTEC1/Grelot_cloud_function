@@ -341,26 +341,43 @@ export const CloudHandler = functions.https.onRequest(async (req,res) => {
         if(account.length > 0 &&  account.length <= 100){
             for(let n = 0; n < account.length; n++){
                  let p:any = CheckForNode((await account[n].get()).data()); 
-                        //if check for user bal > 0
-                        //check for group liquidty
-                        //if check for user hand made stake group fund capacity
-
+                
                     let g:any = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.group_mail).collection(p.User.group_mail+"_stakes").doc(p.User.group_id);
                       let u = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.email);
                         let q:any = CheckForNode((await u.get()).data());
                           let w:any = CheckForNode((await g.get()).data());
 
-                       if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
-                           g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N"));
-                             g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
-                               u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N")));
-                        }else{
-                             g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
-                               u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
-                        }
+                                if(q.User.liquidity > q.User.miner_stake && q.User.active){
+                                        if(w.User_details.gas > 0){
+                                                //if(q.User.Self && w.User.liquidity > Action(3,w.User.odd,q.User.input,"N")){
+                                                        if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
+                                                          g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N"));
+                                                            g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
+                                                              u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N")));
+                                                        }
+                                                        else{
+                                                            g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
+                                                              u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
+                                                        }
+                                                          res.json({message: "ok"});
+                                                // }
+                                                // else{ 
+                                                //     u.delete();
+                                                //     //also send to user track stake records
+                                                //     res.json({message:"Sorry liquidity is low"})
+                                                // }
+                                        }else {
+                                            u.delete();
+                                            res.json({message: "User Stake dropped !"})
+                                        }
+                                    }
+                                    else {
+                                        g.update("User.active",false);
+                                        //send notification to members
+                                        res.json({message: "Group Stake Suspended !"})
+                                    }
                             
-                    }
-                       res.json({message: "ok"})
+                }
                 }else
                     res.json({message: "No available spot pls try again later !"})
   
@@ -368,21 +385,6 @@ export const CloudHandler = functions.https.onRequest(async (req,res) => {
 
 
 
-// let groupnode = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_id).collection(user.User.creator_id+"_stakes").doc(user.User.doc_id);
-             
-// let userDc = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-// let ms = CheckForNode((await userDc.get()).data)
-
-           
-// console.log(user)
-// res.json({m:"ok"})
-
-
-
-// if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length > 0) 
-// caclulate(res,user,0,[],[],3);
-// else
-//      res.json({message: [{m1: "Insufficient funds pls purchase gas !"}]})
 
 
 
