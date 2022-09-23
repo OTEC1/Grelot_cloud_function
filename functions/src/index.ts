@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions";
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
 import { Grelot_lock, records, reaction_count, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, Addvendorinvestment, GetvendorInvestment, Uploadproducts,dynamicpostrender2} from "./controllers/Grelot";
-import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,LoadActiveGroup,LoadInactiveGroup, bot_mine, User_action,Voches, creator_cancel,purchasevoches,ExchangeFunds, SignInWithEmail,GenerateRandom, CloudHandler, AddHandler} from './controllers/Cravetech';
+import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,LoadActiveGroup,LoadInactiveGroup, bot_mine, User_action,Voches, creator_cancel,purchasevoches,ExchangeFunds, SignInWithEmail,GenerateRandom, CloudHandler, AddHandler, CA, VNODES} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp, getUserAgent} from "./controllers/Noman";
 import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
 import { Registeruser } from "./controllers/Monclaris";
@@ -65,14 +65,21 @@ Cravetech.post("/purchasevoches",purchasevoches);
 Cravetech.post("/ExchangeFunds",ExchangeFunds);
 Cravetech.post("/creatorcancel",creator_cancel);
 Cravetech.post("/Userfunds", UserFund);
-Cravetech.post("/Voches",Voches);
-Cravetech.post("/GC",CloudHandler);
 Cravetech.post("/AddHandler",AddHandler);
+Cravetech.post("/GC",CloudHandler);
+Cravetech.post("/Voches",Voches);
+Cravetech.post("/VN",VNODES);
+Cravetech.post("/CA",CA);
+
+
 
 
 Cravetech.post("", GenerateRandom);
 Cravetech.post("", ManageUserAcct);
 Cravetech.post("", AuthUserSession);
+
+
+
 
 exports.Cravetech = functions.https.onRequest(Cravetech);
 

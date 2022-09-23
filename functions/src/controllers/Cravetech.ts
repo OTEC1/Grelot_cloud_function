@@ -3,7 +3,6 @@ import {db, db_sec, admin, sec_admin} from '../config/firebase'
 import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
-import { auth, messaging } from 'firebase-admin';
 require('dotenv').config()
 
 
@@ -35,6 +34,13 @@ type Register = {
 
 
 
+type H = {
+    Platform:{
+        count:0;
+    }
+}
+
+
 type GroupWithdrawal = {
     User:{
         doc_id:string,
@@ -46,6 +52,14 @@ type GroupWithdrawal = {
 
 
 
+type Calculator = {
+    User:{
+        amount:number
+        id:number
+    }
+}
+
+
 type GroupUser = {
     User:{
         email:string,
@@ -55,7 +69,9 @@ type GroupUser = {
         group_mail:string,
         hour:number,
         bot_size:number,
-        doc_id:string
+        doc_id:string,
+        loss:number,
+        profit:number
     }
 }
 
@@ -171,8 +187,8 @@ type Qs = {
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
      try{
         let user: Register = req.body
-           //if(MACHINE_CHECK(req)){
-                        admin.auth().createUser({ 
+          if(MACHINE_CHECK(req)){
+                       sec_admin.createUser({ 
                                         email: user.User.email,  
                                         emailVerified:false,
                                         password:user.User.password,
@@ -185,7 +201,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                                 user.User_details.bal = 0;
                                                 user.User_details.gas = 0;
                                                 user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
-                                                    if(await REMOVENODE(null,2,db,record.email)){
+                                                    if(await REMOVENODE(null,2,db_sec,record.email)){
                                                          if(await REMOVENODE(user,1,db,record.email))
                                                            return res.json({message: "Account created"})
                                                     }else
@@ -197,8 +213,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                         }).catch((err => {
                                             return  res.json({message: err as Error })
                                     }))
-                    // }else
-                    //     Cancel([],res);
+                        }else
+                            Cancel([],res);
                 }catch(err){
                     res.json({ message: err as Error})
          }
@@ -298,88 +314,66 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 
 
 
-//Check user session ID and auth id on call
-export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
-    try{
-      let user: CheckUserStat  = req.body;
-      let raw_data:any [] = []
-                if(await Isvalid(user.User,res,req)){
-                        if(user.User.category.trim().length > 0 && user.User.list.length >= 5){
-                            let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
-                            docs.forEach((doc: any) => raw_data.push(doc.data()));  
-
-                            let answer_lists = [];
-                            for(let e =0; e < user.User.list.length; e++){
-                                    let a:any = user.User.list[e];
-                                        for(let m=0; m < raw_data.length; m++){
-                                            if(a.question_id.toString() === raw_data[m].Q.id.toString()){
-                                                if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
-                                                    answer_lists.push(1);        
-                                        }
-                                    }                       
-                                }
-                                if(answer_lists.length === 5)                  
-                                      UpdateUserAccount(res,user,1,"You won this stage",undefined,3,0,0); 
-                                else
-                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0);
-                        }
-                        else
-                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0); 
-                    }
-
-                }catch(err){
-                  res.json({message: err as Error})
-                }
-});
-
-
-
-
 export const CloudHandler = functions.https.onRequest(async (req,res) => {
- //loop for list of live runner and execute !
-    let  account = await db.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
-        if(account.length > 0 &&  account.length <= 100){
-            for(let n = 0; n < account.length; n++){
-                 let p:any = CheckForNode((await account[n].get()).data()); 
+   
+      if(req.body.toString() === process.env.REACT_APP_HEADER &&  req.headers['user-agent']?.toString() === process.env.REACT_APP_USER_AGENT){   
+         let liveVnodes = await db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
+           if(liveVnodes.length > 0 &&  liveVnodes.length <= 100){
+              for(let n = 0; n < liveVnodes.length; ++n){
                 
-                    let g:any = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.group_mail).collection(p.User.group_mail+"_stakes").doc(p.User.group_id);
-                      let u = db.collection(process.env.REACT_APP_USER_DB!).doc(p.User.email);
-                        let q:any = CheckForNode((await u.get()).data());
-                          let w:any = CheckForNode((await g.get()).data());
+                  let p:any = CheckForNode((await liveVnodes[n].get()).data()); 
+                    let g = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(p.User.group_mail).collection(p.User.group_mail+"_stakes").doc(p.User.group_id);
+                        let ms =  db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(p.User.doc_id);
+                            let u = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(p.User.email);
 
-                                if(q.User.liquidity > q.User.miner_stake && q.User.active){
-                                        if(w.User_details.gas > 0){
-                                                //if(q.User.Self && w.User.liquidity > Action(3,w.User.odd,q.User.input,"N")){
-                                                        if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
-                                                          g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N"));
-                                                            g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
-                                                              u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N")));
-                                                        }
-                                                        else{
-                                                            g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
-                                                              u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
-                                                        }
-                                                          res.json({message: "ok"});
-                                                // }
-                                                // else{ 
-                                                //     u.delete();
-                                                //     //also send to user track stake records
-                                                //     res.json({message:"Sorry liquidity is low"})
-                                                // }
-                                        }else {
-                                            u.delete();
-                                            res.json({message: "User Stake dropped !"})
+                       if((await g.get()).exists && (await u.get()).exists){
+                          let w:any = CheckForNode((await g.get()).data());
+                            let q:any = CheckForNode((await u.get()).data());      
+                            
+                          
+
+                                if(w.User.liquidity > w.User.miner_stake && w.User.active){
+                                    if(q.User_details.gas > w.User.miner_stake){
+                                        //if(q.User.Self && w.User.liquidity > Action(3,w.User.odd,q.User.input,"N")){
+
+                                         
+
+                                         //}else 
+                                             //if{ 
+                                                //chedck if p.User.bot is < 6
+                                                if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
+                                                       g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N")+w.User.loss);
+                                                         g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
+                                                           u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N"))+q.User_details.bal);
+                                                            ms.update("User.profit",Action(1,w.User.miner_stake,p.User.profit,"N"));
+                                                }
+                                                else{
+                                                      g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
+                                                        u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
+                                                          ms.update("User.loss",Action(1,w.User.miner_stake,p.User.loss,"N"));
+                                                }
+                                                 if(n === liveVnodes.length-1)
+                                                    res.json({message: "ok"});
+                                        }else 
+                                             res.json({message: "User Stake dropped !"})
                                         }
-                                    }
-                                    else {
+                                     //}
+                                      else {
                                         g.update("User.active",false);
                                         //send notification to members
-                                        res.json({message: "Group Stake Suspended !"})
-                                    }
-                            
-                }
+                                        g.update("User.members_ids",[w.User.members_ids[0]]);  
+                                         res.json({message: "Group Stake Suspended !"})
+                                  }
+                            }
+                          else {
+                             //send notification to both  user and G creator
+                              res.json({message: "User Stake dropped !"})
+                          }
+                        }
                 }else
                     res.json({message: "No available spot pls try again later !"})
+            }else 
+                res.json({message: "Unauthorized Request !"})
   
 })
 
@@ -390,18 +384,42 @@ export const CloudHandler = functions.https.onRequest(async (req,res) => {
 
 export const AddHandler = functions.https.onRequest(async (req,res) => {
     let user:GroupUser = req.body;
-        //if(await Isvalid(user.User,res,req)){
-            let  account = db.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(); 
-                user.User.doc_id = account.id;
-                  account.set(user);
-                    if(account.id && user.User.bot_size <=6)
-                        res.json({message: "Spot added !"})
-                    else
-                        DeactiveAccout(user.User.user_id,"Invalid request last warning",res);
-        //}
+       if(await Isvalid(user.User,res,req)){
+            let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.group_mail).collection(user.User.group_mail+"_stakes").doc(user.User.group_id);
+              let  account = db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(); 
+                 let users = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+
+                  let use:any = CheckForNode((await users.get()).data());
+                    let o:any = CheckForNode((await group.get()).data());
+
+                        user.User.doc_id = account.id;
+                        user.User.loss = 0;
+                        user.User.profit = 0;
+                        account.set(user);
+
+                    if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
+                        PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
+                            group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
+                                users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
+                                    res.json({message: "Spot added !"})
+                    }else
+                        res.json({message: "Spot not added !"})
+        }
 });
 
 
+
+
+export const  VNODES = functions.https.onRequest(async (req,res) => {
+    let user:GroupWithdrawal = req.body;
+      let raw:GroupUser  [] = []
+         if(await Isvalid(user.User,res,req)){
+            let data = await db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).where("User.email","==",user.User.email).get();
+               data.forEach((doc: any) => raw.push(doc.data()));   
+                  res.json({message:raw})
+            }
+        }
+);
 
 
 
@@ -414,6 +432,17 @@ export const  bot_mine = functions.https.onRequest(async (req,res) => {
 })
 
 
+
+
+
+export const  CA = functions.https.onRequest(async (req,res) => {
+    let c:Calculator = req.body;
+        if(c.User.id === 1)
+            res.json({message:LoadUp(c.User.amount)}) 
+        else 
+            res.json({message:Looper(c.User.amount)})
+
+});
 
 
 
@@ -616,8 +645,8 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
 
 
 async function Debit_account(user:UserNoRequest,node:number){
-    let doc_ = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-        let admindoc = db.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+        let admindoc = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
             if((await doc_.get()).exists){
                const data:any = CheckForNode((await doc_.get()).data());
                   const adata:any = CheckForNode((await admindoc.get()).data());
@@ -674,30 +703,13 @@ async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:n
 
 
 
-// >  {
-// >    User: {
-// >      email: 'sting2@gmail.com',
-// >      user_id: 'sVcfplqTStLKKaD5y3wm7F4pbgH8',
-// >      IMEI: 'n/a',
-// >      creator: [
-// >        63, 11, 38, 60, 40,
-// >        47, 48, 75, 97,  5,
-// >        57, 88
-// >      ],
-// >      creator_id: 'string1@gmail.com',
-// >      doc_id: 'W4rlBgVRPq6DvURIVkDl',
-// >      isBot: true,
-// >      isGroup: true,
-// >      isUser: false,
-// >      user_selected: [ 78, 92 ]
-// >    }
-// >  }
+
 
 
 
 async function Account(res: functions.Response<any>, user: UserNoRequest,i:number,rt:any) {
     let list = [];
-    let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+      let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
            if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                   const data:any = CheckForNode((await doc_.get()).data());
                      if(data.User_details.gas >= parseInt(process.env.REACT_APP_TOKENS!)){
@@ -728,25 +740,25 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
         messages.push(ms);
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
       if(credit_node === 3)
-            platform = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-              if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
-                    const data:any = CheckForNode((await doc_.get()).data());
-                        if(credit_node === 3)
-                            adata = CheckForNode((await platform.get()).data());
-                            if(i ===  1){ 
-                                    //withdrawel_node can be group payload
-                                    //still needs more check
-                                //check if its for app call or withrawal call for debiting
-                                doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
-                                    if(credit_node === 5)
-                                       doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
-                                    return res.json({message:messages})
-                            }else
-                                if(i ===  2){ //still needs more check   
-                                    //check if its for app call or group call for crediting
-                                    doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
-                                    return res.json({message:messages})
-                                }
+        platform = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+          if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+              const data:any = CheckForNode((await doc_.get()).data());
+                if(credit_node === 3)
+                    adata = CheckForNode((await platform.get()).data());
+                    if(i ===  1){ 
+                        //withdrawel_node can be group payload
+                        //still needs more check
+                        //check if its for app call or withrawal call for debiting
+                        doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
+                            if(credit_node === 5)
+                                doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
+                            return res.json({message:messages})
+                    }else
+                        if(i ===  2){ //still needs more check   
+                            //check if its for app call or group call for crediting
+                            doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
+                            return res.json({message:messages})
+                        }
                      }else 
                           return  res.json({message: "Account not found"})
 }
@@ -761,82 +773,15 @@ export const ExchangeFunds = functions.https.onRequest(async (req,res) => {
     let user:Withdrawals = req.body;
       if(await Isvalid(user.User,res,req)){
              let user_node =  db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-                    if((await user_node.get()).exists){
-                            let m:any = CheckForNode((await user_node.get()).data());
-                                if(m.User_details.bal > user.User.amount){
-                                    //Sell gas or spot to friend nodes by email and ID
-                                } else
-                                        res.json({message: "Insufficient funds !"});
-                                
+                 if((await user_node.get()).exists){
+                     let m:any = CheckForNode((await user_node.get()).data());
+                         if(m.User_details.bal > user.User.amount && user.User.amount > 0){
+                             //Sell gas or spot to friend nodes by email and ID
+                        }else
+                            res.json({message: "Insufficient funds !"});    
                         }
                 }});
 
-
-
-
-export const GenerateRandom = functions.https.onRequest(async (req,res) => {
-          let user:UserRequest = req.body;
-            let listres = [];
-             if(await Isvalid(user.User,res,req)){
-                let table = "CreavatechQ_"+user.User.category;
-                    let count = await UniqueList((await db.collection(table).doc(user.User.category).collection(table).listDocuments()).length);
-                       const array: any[] = [];
-                           count.forEach(v => array.push(v));
-                             if(array){
-                                let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
-                                    if(!(await doc.get()).exists){
-                                            doc.set({Count:array,timestamp: Date.now()});
-                                              listres.push({error:"All set !"});
-                                        res.json({message: listres})
-                                    }else{
-                                        let m:any = CheckForNode((await doc.get()).data());
-                                            if(m.Count.length > 0){
-                                                let ls = m.Count.pop();
-                                                 AuthUserRequest(res,user,ls,doc,m.Count,m.timestamp);
-                                                }else
-                                                    if(m.Count.length <= 0){
-                                                        var date = new Date(m.timestamp);
-                                                          if(date.toLocaleDateString() === new Date().toLocaleDateString()){
-                                                               listres.push({error:"Pls wait while we reset your Questions"})
-                                                                 res.json({message: listres})
-                                                          }else{
-                                                               doc.update({Count:array,timestamp: Date.now()});
-                                                                listres.push({error:"All Reset !"});
-                                                                   res.json({message: listres})
-                            }
-                        }
-                     }
-                  }
-                }
-})
-
-
-
-
-
-//Check user bal and gas 
-async function AuthUserRequest(res: functions.Response<any>,data: any,id:any,documents:any,Count:any,tamp:any){
-    let raw_data:Qs [] = [];
-    let list:any [] = [];
-        let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
-            if((await doc.get()).exists){
-                    const user_data:any = CheckForNode((await doc.get()).data());
-                        if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
-                                let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",id).get();
-                                  docs.forEach((doc: any) => raw_data.push(doc.data()));   
-                                    documents.set({Count:Count,timestamp:tamp});
-                                      res.json({message:raw_data})
-                                } else { 
-                                    list.push({error: "Insufficient funds pls purchase gas !"})
-                                    res.json({message: list})
-                              }
-                        }
-                        else {
-                            list.push({error: "Account Doesn't exist !"});
-                            res.json({message: list});
-                        }
-         
-};
 
 
 
@@ -854,10 +799,10 @@ async function UniqueList(max:number){
 export const GroupCreate = functions.https.onRequest(async (req,res) => {
     let members: any[] = [];
     let user: GroupCreation = req.body;
-     //if(await Isvalid(user.User,res,req)){
-           admin.auth().getUser(user.User.user_id)
-            .then(async (use) => {
-                    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(use.email!)
+     if(await Isvalid(user.User,res,req)){
+           sec_admin.getUser(user.User.user_id)
+               .then(async (use) => {
+                    let docs = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(use.email!)
                        const da:any = CheckForNode((await docs.get()).data());
                              if(da.User_details.gas > user.User.amount){
                                   let m =  docs.collection(use.email+"_stakes").doc()
@@ -873,16 +818,16 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                                                             user.User.profit = 0;
                                                             user.User.loss = 0;
                                                             m.set(user);
-                                                            docs.update("User_details.gas",Action(0,user.User.amount,da.User_details.gas,"N"));
+                                                              docs.update("User_details.gas",Action(0,user.User.amount,da.User_details.gas,"N"));
                                                                 DeactiveAccout(use.uid,"",res);
                                                                 if(m.id)
                                                                     res.json({message: `Group ${user.User.groupName} created`})
                                                                 else
                                                                     res.json({message: `Group ${user.User.groupName} creation failed !`})
                                                             }else
-                                                                DeactiveAccout(use.uid,"Invalid request do not try this again",res);
+                                                             DeactiveAccout(use.uid,"Invalid request do not try this again",res);
                                                     }else
-                                                        DeactiveAccout(use.uid,"Invalid request do not try this again",res);
+                                                       DeactiveAccout(use.uid,"Invalid request do not try this again",res);
                                             }
                                             else
                                                  DeactiveAccout(use.uid,"Invalid request do not try this again",res);
@@ -893,7 +838,7 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                     .catch(err => {
                         res.json({message: err})
                 })
-       // }    
+       }    
 })
 
 
@@ -907,9 +852,9 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
         try{
             let  user: UserRequest = req.body;
               let grouplist:any [] = [];
-                 //if(await Isvalid(user.User,res,req)){
-                    let  account = db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-                        let creator =   db.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
+                 if(await Isvalid(user.User,res,req)){
+                    let  account = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+                        let creator =   db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.creator_email).collection(user.User.creator_email+"_stakes").doc(user.User.doc_id)
                          if((await creator.get()).exists){
 
                            let Usercheck:any = CheckForNode((await account.get()).data());
@@ -944,7 +889,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                             }
                             else
                                res.json({message: "Group doesn't exists !"})
-                  //}
+                  }
            }catch(err){
               res.json({message: err as Error})
         }
@@ -1017,7 +962,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                         let u:any = CheckForNode(doc.data());
                           list.push(u.User.email);
                  })        
-                   LoopForGroups(list,res,docs,1); 
+                   LoopForGroups(list,res,docs,1,m.User.email); 
         }
 })
 
@@ -1036,7 +981,7 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
                         let u:any = CheckForNode(doc.data());
                         if(m.User.email !== u.User.email){
                             list.push(u.User.email);
-                             LoopForGroups(list,res,docs,2);
+                             LoopForGroups(list,res,docs,2,"");
                         } 
                  })        
         }
@@ -1046,23 +991,382 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
 
 
 
-async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:number) {
+async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:number, email:any) {
 
     let groups:GroupCreation [] = [];
-    for(let y=0; y < list.length; y++){
+     for(let y=0; y < list.length; y++){
          const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
          const snapshot = await groupRef.where('User.active', '==', call === 1 ? true : false).get();
          if (snapshot.empty) 
               console.log('NMD');
           else
             snapshot.forEach((doc:any) => {
-                groups.push(doc.data());
-            });
+                let d:any = CheckForNode(doc.data());
+                if(email.trim().length > 0){
+                  if(email !== d.User.email)
+                     groups.push(d);
+                }else
+                   groups.push(d);
+            });     
     }
     res.json({message: groups})
 }
 
 
+
+
+
+
+function getRandom(length: any):number {
+   return Math.floor(Math.random() * length)
+}
+
+
+
+
+
+
+function CheckForNode(X:any){
+    const map  = new Map(Object.entries(X));
+    const data = Object.fromEntries(map);
+    return data;
+}
+
+
+
+
+function SendOff(list: any,size:number,cons:number) {
+    while (true) {
+        list.push(getRandom(size))
+        if(uniq(list).length === cons)
+              return uniq(list);
+    }
+}
+
+
+
+function uniq(a:any) {
+    return Array.from(new Set(a));
+ }
+
+
+
+
+ async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
+    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
+        if((await docs.get()).exists){
+            let res =  db_sec.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
+                let data:any = CheckForNode((await res.get()).data())
+                    if(body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request) && await UseraccountActive(body.user_id,response))
+                        if(!(await sec_admin.getUser(data.User.user_id)).disabled)   
+                                return true;
+                        else
+                                return  response.json({message: [{error: "Your account has been disabled !"}]});
+                    else
+                        Cancel([], response);
+        }else
+            Cancel([], response);
+}
+
+
+
+
+function MACHINE_CHECK(req:  functions.Request<any>) {
+  return  LOOP(req) ? true : false;
+}
+
+
+
+
+let user_agents = ['Chrome','Firefox','Edg','MSIE','okhttp/3.14.9'];
+function LOOP(req: functions.Request<any>): boolean {
+    let nope:boolean = false;
+     for(let n = 0; n < user_agents.length; n++)
+        if(req.headers['user-agent']?.toString().includes(user_agents[n].toString())) 
+             nope = true;
+ return nope;
+}
+
+
+
+
+function Cancel(list: any[], response: functions.Response<any>) {
+    list.push({error: "Unauthorized Request !"});
+return  response.json({message: list});
+}
+
+
+
+
+function Remove(members_ids: any[], doc:String):any [] {
+    let lists = [];
+         for(let i = 0; i < members_ids.length; i++)
+             if(members_ids[i].toString() != doc)
+                lists.push(members_ids[i]);
+  return lists;
+}
+
+
+
+
+
+async function UseraccountActive(user_id:any,res:functions.Response<any>) {
+     let user = await sec_admin.getUser(user_id);
+        if(!user.disabled)
+            return true;
+        else
+            res.json({message: "Your account has been disabled !"})
+    
+}
+
+
+
+
+
+
+
+async function DeactiveAccout(user_id:string, msg:string, res:functions.Response<any>){
+   
+        let doc = db_sec.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user_id);  
+            if(!(await doc.get()).exists && msg.trim().length <= 0)
+                doc.set({User:{count:0}});
+            else
+                if((await doc.get()).exists && msg.trim().length > 0){
+                    let out:any = CheckForNode((await doc.get()).data());
+                      doc.update({User:{count:out.User.count+1}});
+                }
+            if((await doc.get()).exists)
+                QuickCheck(user_id,msg,res,doc); 
+            else
+                res.json({message:msg})
+
+
+};
+
+
+
+
+async function QuickCheck(user_id:string, ms: string, res: functions.Response<any>,doc:any){
+        if((await doc.get()).exists && checkstats((await doc.get()).data()))
+              sec_admin.updateUser(user_id,{disabled:true});
+        ms.length > 0 ?  (await sec_admin.getUser(user_id)).disabled ? res.json({message:"Your account has been disabled !"}) :  res.json({message:ms}) : null
+        
+};
+
+
+
+
+function checkstats(m:any):boolean{ 
+        let p:any = CheckForNode(m);
+      return  p.User.count === 2 ? true:false;
+}
+
+
+function Looper(credit:any){
+    let count = 0;
+    let store = 0;
+    let amount = credit;
+        for(let m = 0; m < credit; m++){
+            count ++;
+                if(count >= 10){      
+                    store += 1;
+                    amount -= 10;
+                    count = 0;
+                }
+         if(m === credit-1){
+             store = amount >= 5 ? store+.5 : store
+            return store;
+        }
+    }
+}
+
+
+
+
+function Action(id:any,acct:any,bal:any,u:string):number{
+    let e:any = 0;
+     if(id == 1)
+         e = acct  + bal;
+       else
+          if(id == 0)
+             e = acct - bal;  
+    else
+      if(id == 3)
+         e = acct * bal; 
+             
+    return u === "F" ? e.toString().includes("-") ? parseFloat(e.toString().replace("-","")) : parseFloat(e)  :  e.toString().includes("-") ? parseInt(e.toString().replace("-","")) : parseInt(e) 
+} 
+
+
+
+
+
+function Divide(users: any[], amount:number):any[]{
+    let sum = [];
+    let s = users.length;
+    sum.push(Math.floor(amount/s));
+       if(amount%s!== 0)
+            sum.push(Math.floor(amount%s));
+        return sum;
+}
+
+
+
+
+function Platform(money:any){
+    let fund = [];
+     fund.push(money[0]);
+       if(money[1] !== NaN && money[1] !== undefined && money[1] !== null)
+            PlatformSave({Platform:{count:parseInt(money[1])}});
+    return fund;
+}
+
+
+
+
+function loopuser(users: any[],user:any){
+    return  users.includes(user);
+}
+
+
+
+
+
+
+
+
+
+async function REMOVENODE(user:any, n:number, dual_db:any, record:any) {
+   return  (await dual_db.collection(process.env.REACT_APP_USER_DB!).doc(record).set(n === 1 ? user : {User:{email:record}})).writeTime;
+}
+
+
+
+
+
+function LoadUp(am:number){
+    return am != 1 ? am * 10  : 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+//------------------------------------------------------Q&A--------------------------------------------------//
+
+
+export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
+    
+    try{
+      let user: CheckUserStat  = req.body;
+      let raw_data:any [] = []
+                if(await Isvalid(user.User,res,req)){
+                        if(user.User.category.trim().length > 0 && user.User.list.length >= 5){
+                            let docs = await db.collection("CreavatechQ_"+user.User.category).doc(user.User.category).collection("CreavatechQ_"+user.User.category).get();
+                            docs.forEach((doc: any) => raw_data.push(doc.data()));  
+
+                            let answer_lists = [];
+                            for(let e =0; e < user.User.list.length; e++){
+                                    let a:any = user.User.list[e];
+                                        for(let m=0; m < raw_data.length; m++){
+                                            if(a.question_id.toString() === raw_data[m].Q.id.toString()){
+                                                if(a.answer_selected.toString() === raw_data[m].Q.answers[0].toString())
+                                                    answer_lists.push(1);        
+                                        }
+                                    }                       
+                                }
+                                if(answer_lists.length === 5)                  
+                                      UpdateUserAccount(res,user,1,"You won this stage",undefined,3,0,0); 
+                                else
+                                      UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0);
+                        }
+                        else
+                            UpdateUserAccount(res,user,2,"Sorry you didn't get all 5 answers right ",undefined,3,0,0); 
+                    }
+
+                }catch(err){
+                  res.json({message: err as Error})
+                }
+});
+
+
+
+
+
+
+
+
+
+export const GenerateRandom = functions.https.onRequest(async (req,res) => {
+    let user:UserRequest = req.body;
+      let listres = [];
+       if(await Isvalid(user.User,res,req)){
+          let table = "CreavatechQ_"+user.User.category;
+              let count = await UniqueList((await db.collection(table).doc(user.User.category).collection(table).listDocuments()).length);
+                 const array: any[] = [];
+                     count.forEach(v => array.push(v));
+                       if(array){
+                          let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection("qanda").doc(user.User.category);
+                              if(!(await doc.get()).exists){
+                                      doc.set({Count:array,timestamp: Date.now()});
+                                        listres.push({error:"All set !"});
+                                  res.json({message: listres})
+                              }else{
+                                  let m:any = CheckForNode((await doc.get()).data());
+                                      if(m.Count.length > 0){
+                                          let ls = m.Count.pop();
+                                           AuthUserRequest(res,user,ls,doc,m.Count,m.timestamp);
+                                          }else
+                                              if(m.Count.length <= 0){
+                                                  var date = new Date(m.timestamp);
+                                                    if(date.toLocaleDateString() === new Date().toLocaleDateString()){
+                                                         listres.push({error:"Pls wait while we reset your Questions"})
+                                                           res.json({message: listres})
+                                                    }else{
+                                                         doc.update({Count:array,timestamp: Date.now()});
+                                                          listres.push({error:"All Reset !"});
+                                                             res.json({message: listres})
+                      }
+                  }
+               }
+            }
+          }
+})
+
+
+
+
+
+//Check user bal and gas 
+async function AuthUserRequest(res: functions.Response<any>,data: any,id:any,documents:any,Count:any,tamp:any){
+let raw_data:Qs [] = [];
+let list:any [] = [];
+  let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(data.User.email);
+      if((await doc.get()).exists){
+              const user_data:any = CheckForNode((await doc.get()).data());
+                  if(user_data.User_details.gas > parseInt(process.env.REACT_APP_TOKENS!)){
+                          let docs = await db.collection("CreavatechQ_"+data.User.category).doc(data.User.category).collection("CreavatechQ_"+data.User.category).where("Q.id","==",id).get();
+                            docs.forEach((doc: any) => raw_data.push(doc.data()));   
+                              documents.set({Count:Count,timestamp:tamp});
+                                res.json({message:raw_data})
+                          } else { 
+                              list.push({error: "Insufficient funds pls purchase gas !"})
+                              res.json({message: list})
+                        }
+                  }
+                  else {
+                      list.push({error: "Account Doesn't exist !"});
+                      res.json({message: list});
+                  }
+   
+};
 
 
 
@@ -1183,15 +1487,6 @@ export const AuthUserSession = functions.https.onRequest(async (req,res) => {
         }
 })
 
-
-
-
-
-
-
-function getRandom(length: any):number {
-   return Math.floor(Math.random() * length)
-}
 
 
 
@@ -1372,225 +1667,19 @@ function addToList(arg0: any[], arg1: string) {
 
 
 
+//-----------------------------------------End of Q&A --------------------------------------//
 
 
-function CheckForNode(X:any){
-    const map  = new Map(Object.entries(X));
-    const data = Object.fromEntries(map);
-    return data;
+
+
+async function PlatformSave(data:any){
+   let cloud = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
+        if((await cloud.get()).exists){
+            let bal:any = CheckForNode((await cloud.get()).data());
+               cloud.update("Platform.count", Action(1,bal.Platform.count,parseInt(data.Platform.count),"N"))
+        }else 
+              cloud.set(data)
 }
-
-
-
-
-function SendOff(list: any,size:number,cons:number) {
-    while (true) {
-        list.push(getRandom(size))
-        if(uniq(list).length === cons)
-              return uniq(list);
-    }
-}
-
-
-
-function uniq(a:any) {
-    return Array.from(new Set(a));
- }
-
-
-
-
- async function Isvalid (body: any,  response: functions.Response<any>, request: functions.Request<any>) {
-    let docs = db.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
-        if((await docs.get()).exists){
-            let res =  db_sec.collection(process.env.REACT_APP_USER_DB!).doc(body.email);
-                let data:any = CheckForNode((await res.get()).data())
-                    if(body.user_id === data.User.user_id && body.IMEI === data.User.IMEI && body.email === data.User.email && MACHINE_CHECK(request) && await UseraccountActive(body.user_id,response))
-                        if(!(await sec_admin.getUser(data.User.user_id)).disabled)   
-                                return true;
-                        else
-                                return  response.json({message: [{error: "Your account has been disabled !"}]});
-                    else
-                        Cancel([], response);
-        }else
-            Cancel([], response);
-}
-
-
-
-
-function MACHINE_CHECK(req:  functions.Request<any>) {
-  return  LOOP(req) ? true : false;
-}
-
-
-
-
-let user_agents = ['Chrome','Firefox','Edg','MSIE','okhttp/3.14.9'];
-function LOOP(req: functions.Request<any>): boolean {
-    let nope:boolean = false;
-     for(let n = 0; n < user_agents.length; n++)
-        if(req.headers['user-agent']?.toString().includes(user_agents[n].toString())) 
-             nope = true;
- return nope;
-}
-
-
-
-
-function Cancel(list: any[], response: functions.Response<any>) {
-    list.push({error: "Unauthorized Request !"});
-return  response.json({message: list});
-}
-
-
-
-
-function Remove(members_ids: any[], doc:String):any [] {
-    let lists = [];
-         for(let i = 0; i < members_ids.length; i++)
-             if(members_ids[i].toString() != doc)
-                lists.push(members_ids[i]);
-  return lists;
-}
-
-
-
-
-
-async function UseraccountActive(user_id:any,res:functions.Response<any>) {
-     let user = await sec_admin.getUser(user_id);
-        if(!user.disabled)
-            return true;
-        else
-            res.json({message: "Your account has been disabled !"})
-    
-}
-
-
-
-
-
-
-
-async function DeactiveAccout(user_id:string, msg:string, res:functions.Response<any>){
-    let doc = db.collection(process.env.REACT_APP_PENARITY_TABLE!).doc(user_id);  
-        if(!(await doc.get()).exists && msg.trim().length <= 0)
-             doc.set({User:{count:1}});
-        else
-            if((await doc.get()).exists && msg.trim().length > 0)
-                  doc.update({User:{count:2}});
-
-        if((await doc.get()).exists)
-            QuickCheck(user_id,msg,res,doc); 
-        else
-            res.json({message:msg})
-
-};
-
-
-
-
-async function QuickCheck(user_id:string, ms: string, res: functions.Response<any>,doc:any){
-        if((await doc.get()).exists && checkstats((await doc.get()).data()))
-              admin.auth().updateUser(user_id,{disabled:true});
-        ms.length > 0 ?  (await admin.auth().getUser(user_id)).disabled ? res.json({message:"Your account has been disabled !"}) :  res.json({message:ms}) : null
-        
-};
-
-
-
-
-function checkstats(m:any):boolean{ 
-        let p:any = CheckForNode(m);
-      return  p.User.count === 2 ? true:false;
-}
-
-
-function Looper(credit:any){
-    let count = 0;
-    let store = 0;
-    let amount = credit;
-        for(let m = 0; m < credit; m++){
-            count ++;
-                if(count >= 10){      
-                    store += 1;
-                    amount -= 10;
-                    count = 0;
-                }
-         if(m === credit-1){
-             store = amount >= 5 ? store+.5 : store
-            return store;
-        }
-    }
-}
-
-
-
-
-function Action(id:any,acct:any,bal:any,u:string):number{
-    let e:any = 0;
-     if(id == 1)
-         e = acct  + bal;
-       else
-          if(id == 0)
-             e = acct - bal;  
-    else
-      if(id == 3)
-         e = acct * bal; 
-             
-    return u === "F" ? e.toString().includes("-") ? parseFloat(e.toString().replace("-","")) : parseFloat(e)  :  e.toString().includes("-") ? parseInt(e.toString().replace("-","")) : parseInt(e) 
-} 
-
-
-
-
-
-function Divide(users: any[], amount:number):any[]{
-    let sum = [];
-    let s = users.length;
-    sum.push(Math.floor(amount/s));
-       if(amount%s!== 0)
-            sum.push(Math.floor(amount%s));
-        return sum;
-}
-
-
-
-
-function Platform(money:any){
-    let fund = [];
-     fund.push(money[0]);
-       if(money[1] !== NaN && money[1] !== undefined && money[1] !== null)
-          Collector(0,money[1]);
-    return fund;
-}
-
-
-
-
-function loopuser(users: any[],user:any){
-    return  users.includes(user);
-}
-
-
-
-
-function Collector(user_id: any, profit: number) {
-    console.log("Store"+ profit)
-}
-
-
-
-
-
-async function REMOVENODE(user:any, n:number, dual_db:any, record:any) {
-   return  (await dual_db.collection(process.env.REACT_APP_USER_DB!).doc(record).set(n === 1 ? user : {User:{email:record}})).writeTime;
-}
-
-
-
-
 
 
 
