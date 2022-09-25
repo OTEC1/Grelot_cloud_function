@@ -41,6 +41,18 @@ type H = {
 }
 
 
+
+type Investor = {
+    User:{
+        amount:number,
+        investor_id:string,
+        name:string,
+        email:string,
+        phone:string,
+        dateSignUp:string
+    }
+}
+
 type GroupWithdrawal = {
     User:{
         doc_id:string,
@@ -71,7 +83,9 @@ type GroupUser = {
         bot_size:number,
         doc_id:string,
         loss:number,
-        profit:number
+        profit:number,
+        input:number,
+        Self:boolean
     }
 }
 
@@ -201,8 +215,8 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                                 user.User_details.bal = 0;
                                                 user.User_details.gas = 0;
                                                 user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
-                                                    if(await REMOVENODE(null,2,db_sec,record.email)){
-                                                         if(await REMOVENODE(user,1,db,record.email))
+                                                    if(await REMOVENODE(null,2,db,record.email)){
+                                                         if(await REMOVENODE(user,1,db_sec,record.email))
                                                            return res.json({message: "Account created"})
                                                     }else
                                                         return res.json({message: "Account wasn't created !"});
@@ -219,6 +233,96 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                     res.json({ message: err as Error})
          }
 })
+
+
+
+
+
+export const VnodeDeal = functions.https.onRequest(async (req,res) => {
+    
+    if(MACHINE_CHECK(req)){
+        const info ="Per hour duration";
+        const infoB ="Select bots size";
+        let hours = [];
+        let bots = [];
+
+            hours.unshift({info:"Please select", t:""});
+            bots.unshift({info:"Please select", t:""});
+
+        for(let n =1; n <=6; n++){
+             hours.push({info:info, t:n});
+                 bots.push({info:infoB, t:n})
+              }
+         res.json({message:[{n1:hours,n2:bots}]});
+    }
+})
+
+
+
+
+
+
+
+
+async function PlatformSave(data:any){
+    let cloud = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
+    let bal:any = 0;
+        if((await cloud.get()).exists){
+            let bal:any = CheckForNode((await cloud.get()).data());
+              if(bal.Platform.count == process.env.REACT_APP_INVEST_HOLD)
+                UpdatePayment(bal.Platform.count/parseInt(process.env.REACT_APP_INVEST_HOLD!.substring(0,1)),cloud,parseInt(data.Platform.count));
+              else
+                   cloud.update("Platform.count", Action(1,bal.Platform.count,parseInt(data.Platform.count),"N"));
+           cloud.update("Platform.backup", Action(1,bal.Platform.backup ? bal.Platform.backup : bal.Platform.count,parseInt(data.Platform.count),"N"));
+        }else 
+              cloud.set(data);
+     cloud.collection(process.env.REACT_APP_USER_DEBIT!).doc().set({nodes:{date:DataHumanFormated(),timestamp:Date.now(),amount:data.Platform.count}})
+
+        
+}
+
+
+
+async function UpdatePayment(arg0: number, cloud:FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,bal:number) {
+        cloud.update("Platform.count",bal);
+           let docs =  cloud.collection(process.env.REACT_APP_INVESTORS_LIST!);
+            (await docs.get()).forEach((v) => {
+                    let doc:any = CheckForNode(v.data());
+                          docs.doc(doc.User.investor_id)
+                                .update("User.amount",Action(1,arg0,doc.User.amount,"N"))
+            })      
+        }
+
+
+
+
+
+
+
+  
+
+export const AddInvestor = functions.https.onRequest(async (req,res) => {
+    if((req.headers['user-agent']?.toString().includes(process.env.REACT_APP_MACHINE!.toString()))){
+        let invest:Investor = req.body;
+            let doc_ref =   db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!).collection(process.env.REACT_APP_INVESTORS_LIST!);
+            if((await doc_ref.listDocuments()).length <= 6){
+                let doc =  doc_ref.doc(Date.now().toString());
+                invest.User.amount = 0;
+                invest.User.dateSignUp = DataHumanFormated();
+                invest.User.investor_id = doc.id
+                    doc.set(invest);
+                     res.json({message: doc.id})
+        }
+        else {
+            PlatformSave({Platform:{count:100}})
+             res.json({message: "Pls send a valid payload"})
+        }
+    }
+
+})
+
+
+
 
 
 
@@ -332,33 +436,40 @@ export const CloudHandler = functions.https.onRequest(async (req,res) => {
                             
                           
 
-                                if(w.User.liquidity > w.User.miner_stake && w.User.active){
-                                    if(q.User_details.gas > w.User.miner_stake){
-                                        //if(q.User.Self && w.User.liquidity > Action(3,w.User.odd,q.User.input,"N")){
+                            if(p.User.Self && p.User.input > 0 && w.User.liquidity > Action(3,w.User.odd,p.User.input,"N") && w.User.active) {
 
-                                         
+                                if(q.User_details.gas > p.User.input){
 
-                                         //}else 
-                                             //if{ 
-                                                //chedck if p.User.bot is < 6
+                                }  
+                                else 
+                                    //return funds to user from both group and investor and send notification
+                                    console.log("Drop User stake");
+                                    
+
+                            }else
+                                if(!p.User.Self && p.User.input <= 0  && w.User.liquidity > w.User.miner_stake && w.User.active){
+                                     if(q.User_details.gas > w.User.miner_stake){
+                                           if(p.User.bot_size <= 6){
                                                 if(SendOff([],100, p.User.bot_size).includes(SendOff([],100, 1)[0])){
                                                        g.update("User.loss",Action(3,w.User.miner_stake,w.User.odd,"N")+w.User.loss);
                                                          g.update("User.liquidity",Action(0,w.User.liquidity,Action(3,w.User.miner_stake,w.User.odd,"N"),"N"));
                                                            u.update("User_details.bal",Looper(Action(3,w.User.miner_stake,w.User.odd,"N"))+q.User_details.bal);
                                                             ms.update("User.profit",Action(1,w.User.miner_stake,p.User.profit,"N"));
+                                                        }
+                                                        else{
+                                                            g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
+                                                                u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
+                                                                ms.update("User.loss",Action(1,w.User.miner_stake,p.User.loss,"N"));
+                                                        }
+                                                        if(n === liveVnodes.length-1)
+                                                            res.json({message: "ok"});
+                                                }else { 
+                                                    //Send notification with stake id
+                                                    DeactiveAccout(q.User.user_id,"invalid request last warning !",res);
                                                 }
-                                                else{
-                                                      g.update("User.profit",Action(1,w.User.profit,w.User.miner_stake,"N"));
-                                                        u.update("User_details.gas",Action(0,q.User_details.gas,w.User.miner_stake,"N"));
-                                                          ms.update("User.loss",Action(1,w.User.miner_stake,p.User.loss,"N"));
-                                                }
-                                                 if(n === liveVnodes.length-1)
-                                                    res.json({message: "ok"});
-                                        }else 
-                                             res.json({message: "User Stake dropped !"})
-                                        }
-                                     //}
-                                      else {
+                                             }else 
+                                                 res.json({message: "User Stake dropped !"})
+                                        }else {
                                         g.update("User.active",false);
                                         //send notification to members
                                         g.update("User.members_ids",[w.User.members_ids[0]]);  
@@ -392,18 +503,34 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
                   let use:any = CheckForNode((await users.get()).data());
                     let o:any = CheckForNode((await group.get()).data());
 
+
                         user.User.doc_id = account.id;
                         user.User.loss = 0;
                         user.User.profit = 0;
-                        account.set(user);
 
-                    if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
-                        PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
-                            group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
-                                users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
-                                    res.json({message: "Spot added !"})
+                    if(user.User.Self && user.User.input && o.User.active && account.id){
+                        user.User.hour = 0;
+                        user.User.bot_size = user.User.input > 0 &&  user.User.input <= 10 ? 1 : user.User.input > 10 && user.User.input <=20  ? 2 : user.User.input > 20  && user.User.input <= 30 ? 3 : 4;
+                            if(o.User.liquidity > Action(3,o.User.odd,user.User.input,"N")){
+                                if(user.User.input < use.User_details.gas){
+                                    account.set(user)
+                                        users.update("User_details.gas",Action(0,user.User.input,use.User_details.gas,"N"))
+                                            res.json({message:[{n1:"Spot added"}]})
+                                }else
+                                    res.json({message:[{n1:"Spot not added pls purchase gas !"}]})
+                        }
+                        else
+                            res.json({message:[{n1:"Sorry group is low on funds !"}]})
+
                     }else
-                        res.json({message: "Spot not added !"})
+                          if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
+                            account.set(user);
+                                PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
+                                    group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
+                                        users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
+                                            res.json({message:[{n1:"Spot added"}]})
+                    }else
+                        res.json({message:[{n1:"Spot not added !"}]})
         }
 });
 
@@ -423,13 +550,6 @@ export const  VNODES = functions.https.onRequest(async (req,res) => {
 
 
 
-
-export const  bot_mine = functions.https.onRequest(async (req,res) => {
-    let user:UserNoRequest = req.body;
-      if(await Isvalid(user.User,res,req))
-           if(user.User.isGroup && user.User.isBot && !user.User.isUser && user.User.creator.length <= 0 )
-               res.json({message: SendOff([],parseInt(process.env.REACT_APP_FIGURE_COUNT!),8)})
-})
 
 
 
@@ -567,7 +687,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
                                     active: false,
                                     odd: group.odd
                                  }});  
-
+                                        //check for group liq
                                  if(account !== null)
                                       account.delete(); 
                                 
@@ -614,30 +734,32 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
       if(await Isvalid(user.User,res,req)){
-         if(user.User.isUser && user.User.user_selected.length > 0){
-              if(await Debit_account(user,1))
-                 caclulate(res,user,getRandom(100),[],[],1);
-                 else{
-                    list.push({m1: "Insufficient funds pls purchase gas !"})
-                     res.json({message: list})
-                }
-         }else 
-            if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
+            if(user.User.isUser && !user.User.isGroup && !user.User.isBot && user.User.user_selected.length > 0){
                 if(await Debit_account(user,1))
-                      res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),12)})
-                 else{
-                    list.push({m1: "Insufficient funds pls purchase gas !"})
-                      res.json({message: list})
-                 }
-         }
-         else
-            if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
-              if(await Debit_account(user,1))
-                 caclulate(res,user,0,user.User.creator,user.User.user_selected,2);
-            else{
-                 list.push({m1: "Insufficient funds pls purchase gas !"})
-                    res.json({message: list})
-                 }
+                    caculate(res,user,getRandom(100),[],[],1);
+                    else{
+                        list.push({m1: "Insufficient funds pls purchase gas !"});
+                          res.json({message: list})
+                    }
+            }else 
+                if(user.User.isBot && user.User.creator.length <= 0 && user.User.user_selected.length <= 0){
+                    if(await Debit_account(user,1))
+                        res.json({message: SendOff(list,parseInt(process.env.REACT_APP_FIGURE_COUNT!),12)})
+                    else{
+                        list.push({m1: "Insufficient funds pls purchase gas !"})
+                          res.json({message: list})
+                    }
+            }
+            else
+                if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
+                    if(await Debit_account(user,1))
+                       caculate(res,user,0,user.User.creator,user.User.user_selected,2);
+                        else{
+                            list.push({m1: "Insufficient funds pls purchase gas !"})
+                              res.json({message: list})
+                        }
+    
+                 
            }
 })
 
@@ -665,13 +787,13 @@ async function Debit_account(user:UserNoRequest,node:number){
 
 
 
-async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
+async function caculate(res: functions.Response<any>, user:UserNoRequest, ran:number,scores:number[],select:number[],i:number) {
     let list = [];
     let indopotency = false;
     if(i === 1){
         //console.log(user.User.user_selected, ran);
         for(let d = 0; d < user.User.user_selected.length; d++)
-            if(user.User.user_selected[d] === ran.toString()){
+            if(user.User.user_selected[d].toString() == ran.toString()){
                 Account(res,user,1,ran);
                 indopotency = true;
             }
@@ -682,20 +804,20 @@ async function caclulate(res: functions.Response<any>, user:UserNoRequest, ran:n
     }
     else 
         if(select.length <= 3 && i === 2){
-          let lucky = [],bet;
+          let lucky =[],bet;
             for(let m=0; m<scores.length; m++)
                 lucky.push(scores[getRandom(scores.length)]);
-            bet = getRandom(scores.length);
+                  bet = getRandom(scores.length);
             for(let i=0; i<select.length; i++)
                  if(select[i] === lucky[bet]){
                     Account(res,user,1,lucky[bet]);  
                     indopotency = true;
                  }
-        if(!indopotency) {//check for rough request
-                  list.unshift({m1:"Sorry you didn't win this stage ",m2:lucky[bet]})
-               return res.json({message:list}) 
-        }     
-    }
+            if(!indopotency) {//check for rough request
+                    list.unshift({m1:"Sorry you didn't win this stage ",m2:lucky[bet]})
+                return res.json({message:list}) 
+            }     
+       }
         else
             DeactiveAccout(user.User.user_id,"Invalid data !",res);
 }
@@ -731,36 +853,39 @@ async function Account(res: functions.Response<any>, user: UserNoRequest,i:numbe
 
 
 async function UpdateUserAccount(res: functions.Response<any>, user:any, i:number, ms:string, rt:any, credit_node:number, withdrawel_node:number, gas_rt:number) {
+
     let messages = [];
     let platform:any;
     let adata:any;
+
     if(rt !== undefined)
         messages.push({m1:ms,m2:rt})
     else
         messages.push(ms);
+
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
       if(credit_node === 3)
-        platform = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-          if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
-              const data:any = CheckForNode((await doc_.get()).data());
-                if(credit_node === 3)
-                    adata = CheckForNode((await platform.get()).data());
-                    if(i ===  1){ 
-                        //withdrawel_node can be group payload
-                        //still needs more check
-                        //check if its for app call or withrawal call for debiting
-                        doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
-                            if(credit_node === 5)
-                                doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
-                            return res.json({message:messages})
-                    }else
-                        if(i ===  2){ //still needs more check   
-                            //check if its for app call or group call for crediting
-                            doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
-                            return res.json({message:messages})
-                        }
-                     }else 
-                          return  res.json({message: "Account not found"})
+            platform = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
+            if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+                const data:any = CheckForNode((await doc_.get()).data());
+                    if(credit_node === 3)
+                        adata = CheckForNode((await platform.get()).data());
+                        if(i ===  1){ 
+                            //withdrawel_node can be group payload
+                            //still needs more check
+                            //check if its for app call or withrawal call for debiting
+                            doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
+                                if(credit_node === 5)
+                                    doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
+                                return res.json({message:messages})
+                        }else
+                            if(i ===  2){ //still needs more check   
+                                //check if its for app call or group call for crediting
+                                doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
+                                return res.json({message:messages})
+                            }
+                    }else 
+                        return  res.json({message: "Account not found"})
 }
 
 
@@ -1250,6 +1375,9 @@ function LoadUp(am:number){
 
 
 
+function DataHumanFormated(): string {
+    return  new Date().toISOString().split('T')[0]
+  }
 
 
 
@@ -1667,19 +1795,13 @@ function addToList(arg0: any[], arg1: string) {
 
 
 
+
+
+
 //-----------------------------------------End of Q&A --------------------------------------//
 
 
 
-
-async function PlatformSave(data:any){
-   let cloud = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
-        if((await cloud.get()).exists){
-            let bal:any = CheckForNode((await cloud.get()).data());
-               cloud.update("Platform.count", Action(1,bal.Platform.count,parseInt(data.Platform.count),"N"))
-        }else 
-              cloud.set(data)
-}
 
 
 
