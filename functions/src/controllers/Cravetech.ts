@@ -3,6 +3,7 @@ import {db, db_sec, admin, sec_admin} from '../config/firebase'
 import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
+import { firestore } from 'firebase-admin';
 require('dotenv').config()
 
 
@@ -49,7 +50,8 @@ type Investor = {
         name:string,
         email:string,
         phone:string,
-        dateSignUp:string
+        dateSignUp:string,
+        key:string
     }
 }
 
@@ -302,8 +304,8 @@ async function UpdatePayment(arg0: number, cloud:FirebaseFirestore.DocumentRefer
   
 
 export const AddInvestor = functions.https.onRequest(async (req,res) => {
-    if((req.headers['user-agent']?.toString().includes(process.env.REACT_APP_MACHINE!.toString()))){
-        let invest:Investor = req.body;
+    let invest:Investor = req.body;
+    if((req.headers['user-agent']?.toString().includes(process.env.REACT_APP_MACHINE!.toString())) && invest.User.key == process.env.REACT_APP_AUTHKEY!){
             let doc_ref =   db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!).collection(process.env.REACT_APP_INVESTORS_LIST!);
             if((await doc_ref.listDocuments()).length <= 6){
                 let doc =  doc_ref.doc(Date.now().toString());
@@ -313,10 +315,9 @@ export const AddInvestor = functions.https.onRequest(async (req,res) => {
                     doc.set(invest);
                      res.json({message: doc.id})
         }
-        else {
-            PlatformSave({Platform:{count:100}})
+        else 
              res.json({message: "Pls send a valid payload"})
-        }
+        
     }
 
 })
@@ -524,7 +525,9 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
 
                     }else
                           if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
-                            account.set(user);
+                            user.User.Self = false;
+                              user.User.input = 0;
+                               account.set(user);
                                 PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
                                     group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
                                         users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
@@ -734,6 +737,10 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
     let list:any = []
     let user:UserNoRequest =  req.body;
       if(await Isvalid(user.User,res,req)){
+
+        if(!user.User.isUser && !user.User.isGroup && user.User.isBot && user.User.user_selected.length > 0 && user.User.creator.length > 0)
+             caculate(res,user,0,user.User.creator,user.User.user_selected,2);
+        else
             if(user.User.isUser && !user.User.isGroup && !user.User.isBot && user.User.user_selected.length > 0){
                 if(await Debit_account(user,1))
                     caculate(res,user,getRandom(100),[],[],1);
@@ -750,14 +757,14 @@ export const  User_action = functions.https.onRequest(async (req,res) => {
                           res.json({message: list})
                     }
             }
-            else
-                if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
-                    if(await Debit_account(user,1))
-                       caculate(res,user,0,user.User.creator,user.User.user_selected,2);
-                        else{
-                            list.push({m1: "Insufficient funds pls purchase gas !"})
-                              res.json({message: list})
-                        }
+            // else
+            //     if(user.User.isBot && user.User.creator.length > 0 && user.User.user_selected.length > 0) 
+            //         if(await Debit_account(user,1))
+            //            caculate(res,user,0,user.User.creator,user.User.user_selected,2);
+            //             else{
+            //                 list.push({m1: "Insufficient funds pls purchase gas !"})
+            //                   res.json({message: list})
+            //             }
     
                  
            }
