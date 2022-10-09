@@ -1,4 +1,5 @@
 import * as functions from "firebase-functions";
+import { SendUpdate } from "./Notification";
 var Pushy = require('pushy');
 require('dotenv').config()
 
@@ -55,47 +56,11 @@ function redireactUrl(d:any, c:any){
 }
 
 
-type PayloadGrelot ={
-    User:{
-        to:string
-    }
-
-    payload:{
-        id: string,
-        email:string,
-        item:string,
-        doc_id:string,
-        pic:string,
-    },
-     options: {
-        notification: {
-            badge: number,
-            sound: string,
-            id: string,
-            email:string,
-            item:string,
-            pic:string,
-            body:string,
-        },
-    };
-}
+export const CloudHandlerCall = functions.https.onRequest((req,res) => {
+        //SendUpdate()
+});
 
 
 
 
-
-var PUSHY_KOKO = new Pushy(process.env.PUSHY_WEBFLY_KEY);
-export const Notificationwebflystore = functions.https.onRequest(async (request, response) => {
-     let e:PayloadGrelot = request.body   
-     PUSHY_KOKO.sendPushNotification(e.payload, e.User.to, e.options,function (err: any, id:any){
-     if(err){
-         response.json({
-            message: "Error Occurred "+err
-        })
-     }
-      response.json({
-        message: "Sent  Succesfully  to "+id
-        })
-      })
-})
 

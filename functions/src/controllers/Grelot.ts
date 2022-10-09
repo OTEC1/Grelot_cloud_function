@@ -1,7 +1,6 @@
 import * as functions from "firebase-functions";
-import { admin, db, db_sec } from "../config/firebase";
+import { admin, db} from "../config/firebase";
 import { auth, firestore } from "firebase-admin";
-import { log } from "firebase-functions/logger";
 var Pushy = require('pushy');
 require('dotenv').config()
 

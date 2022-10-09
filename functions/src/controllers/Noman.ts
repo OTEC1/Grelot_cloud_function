@@ -2,7 +2,6 @@ import * as functions from "firebase-functions";
 import { v4 as uuid } from 'uuid';
 import * as cloudinary from 'cloudinary';
 import * as AWS from 'aws-sdk';
-import {Response,Request, request, response} from "express";
 
 
 

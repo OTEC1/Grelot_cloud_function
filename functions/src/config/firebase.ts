@@ -24,8 +24,8 @@ const secondary = ({
       databaseURL: process.env.REACT_APP_DB_SEC
 });
 
-const sec = admin.initializeApp(secondary,'secondary');
 
+const sec = admin.initializeApp(secondary,'secondary');
 
 const db = admin.firestore();
 const db_sec = admin.firestore(sec);

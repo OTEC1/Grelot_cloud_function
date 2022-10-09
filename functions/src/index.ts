@@ -1,9 +1,9 @@
 import * as functions from "firebase-functions";
 import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPost, webdealitGetAllPost, webdealitGetAllPostByOrientation, webdealitGetAllPostByViews, webdealitGetMovie, webdealitGetMovieBydownloadCount, webdealitGetMovieByName, webdealitGetMovieUpdatedownloadCount, webdealitGetMusic, webdealitGetMusicByArtiseName, webdealitGetMusicByArtiseSort, webdealitGetMusicByLink, webdealitGetMusicByMusictitle, webdealitGetPostbylink, webdealitGetSignleUserPost, webdealitHomePageTopList, webdealitPostByTitle, webdealitRidirectUrl, webdealitSignInUser, webdealitVisitCount, webdealitVisitGetCount, Webdealit_Genre, webdealit_lock, webdealit_Movie_categories, webdealit_RegisterUser, webdealit_thumbsUp_and_views } from "./controllers/Webflyclick";
 import { Grelot_lock, records, reaction_count, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, Addvendorinvestment, GetvendorInvestment, Uploadproducts,dynamicpostrender2} from "./controllers/Grelot";
-import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,LoadActiveGroup,LoadInactiveGroup, User_action,Voches, creator_cancel,purchasevoches,ExchangeFunds, SignInWithEmail,GenerateRandom, CloudHandler, AddHandler, CA, VNODES, VnodeDeal,AddInvestor} from './controllers/Cravetech';
+import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,LoadActiveGroup,LoadInactiveGroup, User_action,Voches, creator_cancel,purchasevoches,ExchangeFunds, SignInWithEmail,GenerateRandom, CloudHandler, AddHandler, CA, VNODES, VnodeDeal,AddInvestor,updateUser, SignInWithEmailAndPassord} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp, getUserAgent} from "./controllers/Noman";
-import { DynamicpostRender, Notificationwebflystore } from "./controllers/Webflystore";
+import { CloudHandlerCall, DynamicpostRender} from "./controllers/Webflystore";
 import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
 import  * as express from 'express';
@@ -13,26 +13,22 @@ const cors = cors1(({ origin: true }));
 
 
 
-
-
-
-
-
 let q:any;
 q = true;
-const domain1 = (p:number) => {
+let  p = 0;
+const domain1 = () => {
   return p === 1 ? "https://cravetech-9b39c.web.app"  : "http://localhost:3000"
 }
 
 const Cravetech = express();
 var corsOptions = {
-    origin: domain1(2),
+    origin: domain1(),
     credentials : true
    }
 
 Cravetech.use(cors1(corsOptions));
 Cravetech.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain1(2));    
+    res.setHeader('Access-Control-Allow-Origin', domain1());    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', q);    
@@ -52,6 +48,7 @@ function attachCsrfToken1(url:any, cookie:any, value:any) {
 
 
 Cravetech.post("/RegisterNewUser", RegisterNewUser);
+Cravetech.post("/SignIn",SignInWithEmailAndPassord);
 Cravetech.post("/GroupCreation",GroupCreate);
 Cravetech.post("/JoinGroupCheck",JoinGroupCheck);
 Cravetech.post("/LeaveGroup",WithdrawfundsFromGroup);
@@ -66,12 +63,14 @@ Cravetech.post("/creatorcancel",creator_cancel);
 Cravetech.post("/Userfunds", UserFund);
 Cravetech.post("/AddHandler",AddHandler);
 Cravetech.post("/UserHandler",AddHandler);
-Cravetech.post("/GC",CloudHandler);
 Cravetech.post("/Voches",Voches);
 Cravetech.post("/VnodeDeal",VnodeDeal);
 Cravetech.post("/AddInvestor",AddInvestor);
 Cravetech.post("/VN",VNODES);
 Cravetech.post("/CA",CA);
+Cravetech.post("/GC",CloudHandler);
+Cravetech.post("/Updatepics",updateUser);
+
 
 
 
@@ -83,10 +82,6 @@ Cravetech.post("/CA",CA);
 Cravetech.post("", GenerateRandom);
 Cravetech.post("", ManageUserAcct);
 Cravetech.post("", AuthUserSession);
-
-
-
-
 exports.Cravetech = functions.https.onRequest(Cravetech);
 
 
@@ -97,7 +92,7 @@ exports.Cravetech = functions.https.onRequest(Cravetech);
 const Webflystore = express();
 Webflystore.use(cors);
 Webflystore.post("/DynamicpostRender", DynamicpostRender);
-Webflystore.post("/Notificationwebflystore", Notificationwebflystore);
+Webflystore.post("/Notificationwebflystore", CloudHandlerCall);
 exports.Webflystore = functions.https.onRequest(Webflystore);
 
 
@@ -163,19 +158,20 @@ exports.Monclaris = functions.https.onRequest(Monclaris);
 
 let v:any;
 v = true;
-const domain2 = (n:number) => {
+let n = 2;
+const domain2 = () => {
   return n === 1 ? "https://grelots-ad690.web.app"  : "http://localhost:3000"
 }
 
 const Grelot = express();
 var corsOptions = {
-    origin: domain2(2),
+    origin: domain2(),
     credentials : true
    }
 
 Grelot.use(cors1(corsOptions));
 Grelot.use(function (req, res, next) {	
-    res.setHeader('Access-Control-Allow-Origin', domain2(2));    
+    res.setHeader('Access-Control-Allow-Origin', domain2());    
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');    
     res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');   
     res.setHeader('Access-Control-Allow-Credentials', v);    
