@@ -147,7 +147,6 @@ type GroupCreation = {
         liquidity:number,
         active:boolean,
         odd:number,
-        guest_avatar:number,
         avatar:number
     }
 }
@@ -1054,7 +1053,6 @@ export const GroupCreate = functions.https.onRequest(async (req,res) => {
                                     members.unshift(user.User.email);
                                       user.User.timestamp = Date.now();
                                        user.User.members_emails = members;
-                                       user.User.guest_avatar = 0;
                                        user.User.IMEI = DechiperData(user.User.IMEI)
                                        user.User.user_id = DechiperData(user.User.user_id)
                                         if(!user.User.active && user.User.amount > 0){
@@ -1209,8 +1207,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                         let u:any = CheckForNode(doc.data());
                           list.push(u.User.email);
                  })        
-                 LoopForGroups(list,res,docs,true,m.User.email); 
-                   
+                 LoopForGroups(list,res,docs,true,m.User.email);           
         }
 })
 
@@ -1254,8 +1251,7 @@ async function LoopForGroups(list: any[], res: functions.Response<any>, docs: Fi
                                  let result:any =  CheckForNode(body);
                                     if(email.trim().length > 0 && !d.User.members_emails.includes(email.toString()) && call)
                                             groups.push(Chiper(d.User,result.User));
-                                        else
-                                          if(!call)
+                                        else if(!call)
                                               groups.push(Chiper(d.User,result.User));         
                         }
                 });  
@@ -1289,7 +1285,6 @@ function Chiper(d: any, o: any){
            odd:d.odd,
            guest_avatar:o.avatar,
            avatar:d.avatar,
-   
            }
        }
        return e;
