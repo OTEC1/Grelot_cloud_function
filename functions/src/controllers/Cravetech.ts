@@ -433,13 +433,13 @@ export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,r
            sec_admin.getUserByEmail(user.User.mail)
                 .then(async (auths) => {
                     bcrypt.compare(user.User.pass, auths.displayName!, async function(err, result) {
-                        if(result == true)
+                        if(result == true){
                              if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).update("User.device_token",user.User.dv)).writeTime){
                                     let data:any = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).get()).data())
                                       res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});
                                 }         
-                        else
-                             res.json({message:"Email or Password Doesn't match !"});
+                            }else
+                                res.json({message:"Email or Password Doesn't match !"});
                     });
                  }).catch(err => {
                       res.json({message: "No user associated with this account !"});
