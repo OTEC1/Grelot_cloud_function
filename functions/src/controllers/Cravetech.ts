@@ -439,7 +439,8 @@ export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,r
                                       res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});
                                 }         
                             }else
-                                res.json({message:"Email or Password Doesn't match !"});
+                                if(err)
+                                   res.json({message:"Email or Password Doesn't match !"});
                     });
                  }).catch(err => {
                       res.json({message: "No user associated with this account !"});
