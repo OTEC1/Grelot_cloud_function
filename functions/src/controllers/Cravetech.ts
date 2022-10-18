@@ -432,16 +432,16 @@ export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,r
          let user: Loging = req.body;     
            sec_admin.getUserByEmail(user.User.mail)
                 .then(async (auths) => {
-                    bcrypt.compare(user.User.pass, auths.displayName!, async function(err, result) {
-                        if(result == true){
-                             if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).update("User.device_token",user.User.dv)).writeTime){
-                                    let data:any = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).get()).data())
-                                      res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});
-                                }         
-                            }else
-                                if(err)
-                                   res.json({message:"Email or Password Doesn't match !"});
-                    });
+                        bcrypt.compare(user.User.pass, auths.displayName!, async function(err, result) {
+                            if(result == true){
+                                if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).update("User.device_token",user.User.dv)).writeTime){
+                                        let data:any = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).get()).data());
+                                           res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});
+                                    }         
+                                }else
+                                    if(err)
+                                    res.json({message:"Email or Password Doesn't match !"});
+                        });
                  }).catch(err => {
                       res.json({message: "No user associated with this account !"});
                 })
@@ -513,8 +513,7 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
                                           if(q.User_details.gas > p.User.input)
                                               CalculateAndFund(g,u,vn,p,w,q); 
                                                   else {
-                                                    let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Low on gas virtual node "+p.User.doc_id+" suspended !"}, 
-                                                               options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id, body:"Low on gas virtual node "+p.User.doc_id+" suspended !"}}}
+                                                    let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Low on gas virtual node "+p.User.doc_id+" suspended !"},  options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id, body:"Low on gas virtual node "+p.User.doc_id+" suspended !"}}}
                                                       SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,q.User)
                                                 }
                                     }else 
@@ -634,7 +633,6 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
                                        res.json({message:[{n1:"Spot not added pls purchase gas !"}]})
                         }else
                             res.json({message:[{n1:"Sorry group is low on funds !"}]})
-                        group.update("User.guest_avatar",use.User.avatar != 0 ? use.User.avatar : "zero")
                       }else
                           if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
                             user.User.Self = false;
@@ -1244,7 +1242,7 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
 
 
 async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:boolean, email:any) {
-    console.log(list)
+    //console.log(list)
     let groups:GroupCreation [] = [];
      for(let y=0; y < list.length; y++){
          const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
