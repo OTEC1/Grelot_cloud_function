@@ -57,7 +57,7 @@ Cravetech.post("/LoadActiveGroup",LoadActiveGroup);
 Cravetech.post("/LoadInactiveGroup",LoadInactiveGroup);
 Cravetech.post("/user_mine",User_action);
 Cravetech.post("/SignInWithEmail",SignInWithEmail);
-Cravetech.post("/purchasevoches",purchasevoches);
+Cravetech.post("/auth_purchase",purchasevoches);
 Cravetech.post("/ExchangeFunds",ExchangeFunds);
 Cravetech.post("/creatorcancel",creator_cancel);
 Cravetech.post("/Userfunds", UserFund);

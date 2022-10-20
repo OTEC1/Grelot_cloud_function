@@ -123,7 +123,8 @@ type Purchase = {
         user_id:string,
         email:string,
         IMEI:string,
-        serial:number
+        serial:number,
+        amount:number
     }
 }
 
@@ -672,9 +673,11 @@ export const  CA = functions.https.onRequest(async (req,res) => {
         if(c.User.id === 1)
             res.json({message:LoadUp(c.User.amount)}) 
         else 
-            res.json({message:Looper(c.User.amount)})
+            res.json({message:PlusQuater(c.User.amount)})
 
 });
+
+
 
 
 
@@ -704,15 +707,17 @@ export const Voches = functions.https.onRequest(async (req,res) => {
 export const purchasevoches = functions.https.onRequest(async (req,res) => {
     let reply = false;
     let user:Purchase = req.body;
-        if(await Isvalid(user.User,res,req))
+        if(await Isvalid(user.User,res,req)){
                 for(let m = 0; m < list.length; m++)
                      if(user.User.serial === list[m].serial)
                             reply = true;
             
         if(reply)
-            console.log();
-            //Paystack
+           res.json({message: "Paystack"})
         else
+            res.json({message: "No auth"})
+           
+        }else
             DeactiveAccout(user.User.user_id,"Invalid request warning ",res);
 })
 
@@ -1218,9 +1223,7 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
                             if(view.User.active == true && !view.User.members_emails.includes(m.User.email)){
                                 if(view.User.members_emails.length > 1)
                                     pick = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(view.User.members_emails.slice(-1)[0]!).get()).data())
-                                else
-                                      pick = 0;
-                              users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avater : pick))
+                              users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avatar : 0))
                             }
                         }
 
@@ -1244,20 +1247,16 @@ export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
                 for(let e=0; e<docs.length; e++){
                    let check:any = CheckForNode((await docs[e].get()).data());
                      const groups = await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(check.User.email!).collection(check.User.email!+"_stakes").listDocuments();
-                       for(let i=0; i<groups.length; i++){
+                       for(let i=0; i< groups.length; i++){
                           let view:any = CheckForNode((await groups[i].get()).data());
-                           if(view.User.active == false){
+                           if(!view.User.active){
                               if(view.User.members_emails.length > 1)
                                   pick = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(view.User.members_emails.slice(-1)[0]!).get()).data())
-                                else
-                                  pick = 0;
-                             users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avater : pick))
-                           }
-                   
-                   if(e == docs.length-1)
-                      res.json({message:users})  
+                             users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avatar : 0))
+                           }  
                }
         }
+        res.json({message:users})  
     }
 })
 
@@ -1556,6 +1555,9 @@ function ChiperData(data: any){
 
 
 
+ function PlusQuater(amount:number){
+    return amount+2.5;
+}
  
 
 
