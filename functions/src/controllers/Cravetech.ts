@@ -3,15 +3,12 @@ import {db, db_sec, admin, sec_admin} from '../config/firebase'
 import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
-import * as bcrypt from 'bcryptjs'
 import * as crypto from 'crypto'
 import { SendUpdate} from './Notification';
 require('dotenv').config()
 
 
-const ENC = "bf3c199c2470cb477d907b1e0917c17b";
-const IV = "5183666c72eec9e4";
-const ALGO = "aes-256-cbc";
+
 
 
 
@@ -234,16 +231,15 @@ type Qs = {
 
 
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
+   
      try{
-        let user: Register = req.body
+        let user: Register = req.body     
             if(MACHINE_CHECK(req)){
-                    bcrypt.genSalt(parseInt(process.env.REACT_APP_KEYS!), function(err, salt) {
-                        bcrypt.hash(user.User.password, salt, function(err, hash) {
-                            admin.auth().createUser({ 
+                        sec_admin.createUser({ 
                                 email: user.User.email,  
                                 emailVerified:false,
                                 password:user.User.password,
-                                displayName:hash,
+                                displayName:ChiperData(user.User.password),
                                 disabled:false,
                             }).then(async (record) => {
                                     user.User.user_id = record.uid;
@@ -255,7 +251,7 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                         user.User_details.bal = 0;
                                         user.User_details.gas = 0;
                                         user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
-                                    if(await REMOVENODE(user,1,db,record.email) && await REMOVENODE(null,2,db,record.email))
+                                    if(await REMOVENODE(user,1,db_sec,record.email) &&  await REMOVENODE(null,2,db,record.email))
                                                 return res.json({message: "Account created"})
                                          else
                                                 return res.json({message: "Account wasn't created !"});
@@ -265,9 +261,6 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                                 }).catch((err => {
                                     return  res.json({message: err as Error })
                             }))
-                            
-                        });
-                    });
                   }else
                        Cancel([],res);
                 }catch(err){
@@ -374,7 +367,7 @@ export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
                 sec_admin.verifyIdToken(user.User.user_id)
                     .then(async (resP) => {
                        let m:any = CheckForNode((await user_node.get()).data());
-                            res.json({message:m.User});
+                              res.json({message:{User:{email:m.User.User.email, IMEI:ChiperData(m.User.User.IMEI), user_id:ChiperData(m.User.User.user_id), avatar:m.User.User.avatar}}});    
                            }).catch(err => {
 
                             const actionCode = {url:'https://cravetech-9b39c.web.app',handleCodeInApp: true,};  
@@ -431,19 +424,22 @@ export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
 export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,res) => {
          let user: Loging = req.body;     
            sec_admin.getUserByEmail(user.User.mail)
-                .then(async (auths) => {
-                        bcrypt.compare(user.User.pass, auths.displayName!, async function(err, result) {
-                            if(result == true){
-                                if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).update("User.device_token",user.User.dv)).writeTime){
-                                        let data:any = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail).get()).data());
-                                           res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});
-                                    }         
+                   .then(async (auths) => {
+                      if(user.User.pass === DechiperData(auths.displayName!)){
+                        let exists = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail);
+                           if((await exists.get()).data()){
+                                let done = (await exists.update("User.device_token",user.User.dv)).writeTime
+                                    if(done){
+                                      let data:any = CheckForNode((await exists.get()).data());
+                                        res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});    
+                                    }else
+                                      res.json({message: "Pls reinstall your device !"});
                                 }else
-                                    if(err)
-                                    res.json({message:"Email or Password Doesn't match !"});
-                        });
+                                   res.json({message: "No account found !"});
+                             }else
+                                res.json({message: "Password or email combination not correct !"});
                  }).catch(err => {
-                      res.json({message: "No user associated with this account !"});
+                      res.json({message: "No account associated with request !"});
                 })
          
     })
@@ -496,12 +492,12 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
          let liveVnodes = await db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).listDocuments();
            if(liveVnodes.length > 0 &&  liveVnodes.length <= 100){
               for(let n = 0; n < liveVnodes.length; ++n){
-                    await sleep(200)        
+                    await sleep(200);        
                         let p:any = CheckForNode((await liveVnodes[n].get()).data()); 
                          let g = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(p.User.group_mail).collection(p.User.group_mail+"_stakes").doc(p.User.group_id);
                             let vn =  db_sec.collection(process.env.REACT_APP_LIVE_INSTANCES!).doc(p.User.doc_id);
                             
-                            let u = DocLookUp(db,p.User.email)
+                            let u = DocLookUp(db_sec,p.User.email)
     
                               if((await g.get()).exists && (await u.get()).exists){
                                 let w:any = CheckForNode((await g.get()).data());
@@ -560,7 +556,7 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
                                                     for(let m=0;  m < [w.User.members_emails].length; m++) {
                                                         let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Group "+w.User.groupName+" is low on gas group suspended !"}, 
                                                                     options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id,body:"Group "+w.User.groupName+" is low on gas group suspended !"}}}
-                                                            let dump = CheckForNode((await DocLookUp(db,w.User.members_emails[m]).get()).data())    
+                                                            let dump = CheckForNode((await DocLookUp(db_sec,w.User.members_emails[m]).get()).data())    
                                                                 SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,dump.User);
                                                                     g.update("User.members_emails",[w.User.members_emails[0]]);  
                                                                         if(m == [w.User.members_emails].length-1)
@@ -568,6 +564,9 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
                                                     }
                                         }          
                             }
+                            else
+                            console.log("");
+                            //return p.User.email initial deposit
                     }
                 }else
                     res.json({message: "No available spot pls try again later !"})
@@ -1206,15 +1205,28 @@ async function innerLoop(raw2: any[]): Promise<any>{
 
 export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
         let m: GroupWithdrawal = req.body;
-        let list:any = [];
-            if(await Isvalid(m.User,res,req)){
-                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
-                  const response = await docs.get();
-                    response.forEach(async (doc) => {
-                        let u:any = CheckForNode(doc.data());
-                          list.push(u.User.email);
-                 })        
-                 LoopForGroups(list,res,docs,true,m.User.email);           
+        let pick:any;
+         let users:GroupWithdrawal [] = [];
+         let r:any
+         if(await Isvalid(m.User,res,req)){
+             let docs = await db_sec.collection(process.env.REACT_APP_USER_DB!).listDocuments();
+                 for(let e=0; e<docs.length; e++){
+                    let check:any = CheckForNode((await docs[e].get()).data());
+                      const groups = await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(check.User.email!).collection(check.User.email!+"_stakes").listDocuments();
+                        for(let i=0; i<groups.length; i++){
+                           let view:any = CheckForNode((await groups[i].get()).data());
+                            if(view.User.active == true && !view.User.members_emails.includes(m.User.email)){
+                                if(view.User.members_emails.length > 1)
+                                    pick = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(view.User.members_emails.slice(-1)[0]!).get()).data())
+                                else
+                                      pick = 0;
+                              users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avater : pick))
+                            }
+                        }
+
+                    if(e == docs.length-1)
+                       res.json({message:users})  
+                }
         }
 })
 
@@ -1225,49 +1237,32 @@ export const LoadActiveGroup = functions.https.onRequest(async (req,res) => {
 
 export const LoadInactiveGroup = functions.https.onRequest(async (req,res) => {
         let m: GroupWithdrawal = req.body;
-        let list:any = [];
+        let pick:any;
+        let users:GroupWithdrawal [] = [];
             if(await Isvalid(m.User,res,req)){
-                let docs = db_sec.collection(process.env.REACT_APP_USER_DB!);
-                  const response = await docs.get();
-                    response.forEach(async (doc) => {                        
-                        let u:any = CheckForNode(doc.data());
-                            list.push(u.User.email);
-                 })        
-                 LoopForGroups(list,res,docs,false,"");
+                let docs = await db_sec.collection(process.env.REACT_APP_USER_DB!).listDocuments();
+                for(let e=0; e<docs.length; e++){
+                   let check:any = CheckForNode((await docs[e].get()).data());
+                     const groups = await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(check.User.email!).collection(check.User.email!+"_stakes").listDocuments();
+                       for(let i=0; i<groups.length; i++){
+                          let view:any = CheckForNode((await groups[i].get()).data());
+                           if(view.User.active == false){
+                              if(view.User.members_emails.length > 1)
+                                  pick = CheckForNode((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(view.User.members_emails.slice(-1)[0]!).get()).data())
+                                else
+                                  pick = 0;
+                             users.push(Chiper(view.User,view.User.members_emails.length > 1 ? pick.User.avater : pick))
+                           }
+                   
+                   if(e == docs.length-1)
+                      res.json({message:users})  
+               }
         }
+    }
 })
 
 
 
-
-
-async function LoopForGroups(list: any[], res: functions.Response<any>, docs: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>, call:boolean, email:any) {
-    //console.log(list)
-    let groups:GroupCreation [] = [];
-     for(let y=0; y < list.length; y++){
-         const groupRef = docs.doc(list[y].toString()).collection(list[y].toString()+"_stakes");
-           const snapshot = await groupRef.where('User.active', '==', call).get();
-            if (snapshot.empty) 
-                    console.log("No doc ref")
-            else{
-                snapshot.forEach(async (doc:any) => {
-                    let d:any = CheckForNode(doc.data());
-                      let check_if = d.User.members_emails.slice(-1)[0].toString();
-                         if(check_if.trim().length > 0){
-                             let  body =  (await docs.doc(check_if).get()).data();
-                                 let result:any =  CheckForNode(body);
-                                    if(email.trim().length > 0 && !d.User.members_emails.includes(email.toString()) && call)
-                                            groups.push(Chiper(d.User,result.User));
-                                        else if(!call)
-                                              groups.push(Chiper(d.User,result.User));         
-                        }
-                });  
-            }       
-            if(y === list.length-1)
-               res.json({message: groups})     
-    }
-  
-}
 
 
 
@@ -1290,7 +1285,7 @@ function Chiper(d: any, o: any){
            liquidity:d.liquidity,
            active:d.active,
            odd:d.odd,
-           guest_avatar:o.avatar,
+           guest_avatar:o,
            avatar:d.avatar,
            }
        }
@@ -1535,8 +1530,8 @@ function DataHumanFormated(): string {
 
 
 
-  function DocLookUp(db: FirebaseFirestore.Firestore, email: any) {
-    return db.collection(process.env.REACT_APP_USER_DB!).doc(email);
+  function DocLookUp(db_dual: FirebaseFirestore.Firestore, email: any) {
+    return db_dual.collection(process.env.REACT_APP_USER_DB!).doc(email);
  }
 
 
@@ -1545,26 +1540,34 @@ function DataHumanFormated(): string {
 
 
 function ChiperData(data: any){
-    let cipher = crypto.createCipheriv(ALGO, ENC, IV);
+    let cipher = crypto.createCipheriv(process.env.REACT_APP_KEY_ALGO!, process.env.REACT_APP_KEY_ENC!, process.env.REACT_APP_KEY_IV!);
     let encrypted = cipher.update(data, "utf8", "base64");
     encrypted += cipher.final("base64");
-    return encrypted;
+    return encrypted.toString();
 }   
 
 
 
  function DechiperData(chiper_text:string){
-    let decipher = crypto.createDecipheriv(ALGO, ENC, IV);
-    let decrypted = decipher.update(chiper_text, "base64", "utf8");
+    let decipher = crypto.createDecipheriv(process.env.REACT_APP_KEY_ALGO!,process.env.REACT_APP_KEY_ENC!, process.env.REACT_APP_KEY_IV!);
+    let decrypted = decipher.update(chiper_text.toString(), "base64", "utf8");
     return decrypted + decipher.final("utf8");
  }
 
 
 
  
+
+
+
+
+
+
+
+
+
+
 //------------------------------------------------------Q&A--------------------------------------------------//
-
-
 export const ManageUserAcct = functions.https.onRequest(async (req,res) => {
     try{
       let user: CheckUserStat  = req.body;
