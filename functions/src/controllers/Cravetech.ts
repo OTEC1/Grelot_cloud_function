@@ -124,7 +124,7 @@ type Purchase = {
         email:string,
         IMEI:string,
         serial:number,
-        amount:number
+        amount:number,
     }
 }
 
@@ -628,24 +628,32 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
                                 if(user.User.input < use.User_details.gas){
                                     account.set(user)
                                         users.update("User_details.gas",Action(0,user.User.input,use.User_details.gas,"N"))
-                                            res.json({message:[{n1:"Spot added"}]})
+                                          res.json({message:[{n1:"Spot added"}]})
                                   }else
                                        res.json({message:[{n1:"Spot not added pls purchase gas !"}]})
                         }else
                             res.json({message:[{n1:"Sorry group is low on funds !"}]})
                       }else
-                          if(account.id && user.User.bot_size <=6 && use.User_details.gas > Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N") && o.User.active){
+                          if(account.id && user.User.bot_size <=6 && CheckBoT(use,user) && o.User.active){
                             user.User.Self = false;
                               user.User.input = 0;
-                               account.set(user);
-                                PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
+                                account.set(user);
+                                if(user.User.bot_size != 1){
+                                  PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
                                     group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
                                         users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
-                                            res.json({message:[{n1:"Spot added"}]})
-                                    }else
-                                        res.json({message:[{n1:"Spot not added !"}]})
+                                    }
+                                      res.json({message:[{n1:"Spot added"}]})
+                            }else
+                                res.json({message:[{n1:"Spot not added !"}]})
         }
 });
+
+
+
+function CheckBoT(use:any, user:any){
+  return  use.User_details.gas >= Action(0,use.User_details.gas,LoadUp(user.User.bot_size),"N")
+}
 
 
 
