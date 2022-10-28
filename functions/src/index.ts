@@ -8,6 +8,7 @@ import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
 import  * as express from 'express';
 import * as cors1 from 'cors';
+import { AuthInvestorWithdraw, AuthBal, PullInvestorTransaciation } from "./controllers/TokcoinInvest";
 const cors = cors1(({ origin: true }));
 
 
@@ -62,7 +63,7 @@ Cravetech.post("/ExchangeFunds",ExchangeFunds);
 Cravetech.post("/creatorcancel",creator_cancel);
 Cravetech.post("/Userfunds", UserFund);
 Cravetech.post("/AddHandler",AddHandler);
-Cravetech.post("/UserHandler",AddHandler);
+Cravetech.post("/UserHandler",AddHandler)
 Cravetech.post("/Voches",Voches);
 Cravetech.post("/VnodeDeal",VnodeDeal);
 Cravetech.post("/AddInvestor",AddInvestor);
@@ -70,6 +71,12 @@ Cravetech.post("/VN",VNODES);
 Cravetech.post("/CA",CA);
 Cravetech.post("/GC",CloudHandler);
 Cravetech.post("/Updatepics",updateUser);
+Cravetech.post("/authInvestor",AuthInvestorWithdraw);
+Cravetech.post("/authBal",AuthBal);
+Cravetech.post("/PullTrans",PullInvestorTransaciation);
+
+
+
 
 
 

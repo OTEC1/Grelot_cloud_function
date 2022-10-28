@@ -66,7 +66,8 @@ type Investor = {
         email:string,
         phone:string,
         dateSignUp:string,
-        key:string
+        key:string,
+        account:number
     }
 }
 
@@ -311,7 +312,7 @@ async function PlatformSave(data:any){
            cloud.update("Platform.backup", Action(1,bal.Platform.backup ? bal.Platform.backup : bal.Platform.count,parseInt(data.Platform.count),"N"));
         }else 
               cloud.set(data);
-     cloud.collection(process.env.REACT_APP_USER_DEBIT!).doc().set({nodes:{date:DataHumanFormated(),timestamp:Date.now(),amount:data.Platform.count}})
+     cloud.collection(process.env.REACT_APP_USER_DEBIT!).doc().set({nodes:{date:DateHumanFormated(),timestamp:Date.now(),amount:data.Platform.count}})
 
         
 }
@@ -343,7 +344,7 @@ export const AddInvestor = functions.https.onRequest(async (req,res) => {
               if((await doc_ref.listDocuments()).length <= 6){
                  let doc =  doc_ref.doc(Date.now().toString());
                    invest.User.amount = 0;
-                    invest.User.dateSignUp = DataHumanFormated();
+                    invest.User.dateSignUp = DateHumanFormated();
                       invest.User.investor_id = doc.id
                         doc.set(invest);
                      res.json({message: doc.id})
@@ -351,7 +352,7 @@ export const AddInvestor = functions.https.onRequest(async (req,res) => {
         else 
              res.json({message: "Pls send a valid payload"})
         
-    }
+   }
 
 })
 
@@ -1530,7 +1531,7 @@ function LoadUp(am:number){
 
 
 
-function DataHumanFormated(): string {
+function DateHumanFormated(): string {
     return  new Date().toISOString().split('T')[0]
   }
 
