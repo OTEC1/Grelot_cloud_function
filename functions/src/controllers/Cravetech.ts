@@ -639,12 +639,10 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
                             user.User.Self = false;
                               user.User.input = 0;
                                 account.set(user);
-                                if(user.User.bot_size != 1){
                                   PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
-                                    group.update("User.profit",Action(1,LoadUp(user.User.bot_size)/2,o.User.profit,"N"))
-                                        users.update("User_details.gas",Action(0,LoadUp(user.User.bot_size),use.User_details.gas,"N"))
-                                    }
-                                      res.json({message:[{n1:"Spot added"}]})
+                                    group.update("User.profit",Action(1, user.User.bot_size != 1 ? LoadUp(user.User.bot_size)/2 : 0, o.User.profit,"N"))
+                                        users.update("User_details.gas", Action(0, user.User.bot_size != 1 ? LoadUp(user.User.bot_size) : 0,use.User_details.gas,"N"))
+                                      res.json({message:[{n1:"Spot added"+user.User.bot_size}]})
                             }else
                                 res.json({message:[{n1:"Spot not added !"}]})
         }
@@ -780,7 +778,7 @@ export const creator_cancel = functions.https.onRequest(async (req,res) => {
 
 
 function RunFun(filter:any, user:any, group:any, account:any, res:functions.Response<any>, doc: any) {
-    if(loopuser(filter.User.members_emails, user.User.user_id)){
+    if(loopuser(filter.User.members_emails, user.User.email)){
           DeactiveAccout(user.User.user_id,"",res);
            if(Divide(filter.User.members_emails,filter.User.profit)[0] !== 0)
                 SendOutFunds(Platform(Divide(filter.User.members_emails, filter.User.profit)), filter.User,user,res,group,account,1,doc);    
@@ -1000,14 +998,14 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
                         if(i ===  1){ 
                             //withdrawel_node can be group payload
                             //still needs more check
-                            //check if its for app call or withrawal call for debiting
+                            //check if its for platform call or withrawal call for debiting
                             doc_.update("User_details.bal", Action(1, credit_node == 3 ? Looper(adata.credit) : credit_node === 2 ? withdrawel_node : Looper(withdrawel_node), data.User_details.bal,"F"));
                                 if(credit_node === 5)
                                     doc_.update("User_details.gas", Action(1,gas_rt,data.User_details.gas,"N"));
                                 return res.json({message:messages})
                         }else
                             if(i ===  2){ //still needs more check   
-                                //check if its for app call or group call for crediting
+                                //check if its for platform call or group call for crediting
                                 doc_.update("User_details.gas",  credit_node !== 4 ?  Action(0,adata.debit,data.User_details.gas,"N") : Action(1,withdrawel_node,data.User_details.gas,"N"));
                                 return res.json({message:messages})
                             }
