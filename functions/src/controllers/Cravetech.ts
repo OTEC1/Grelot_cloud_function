@@ -302,25 +302,22 @@ export const VnodeDeal = functions.https.onRequest(async (req,res) => {
 
 async function PlatformSave(data:any){
     let cloud = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
-    let bal:any = 0;
         if((await cloud.get()).exists){
             let bal:any = CheckForNode((await cloud.get()).data());
-              if(bal.Platform.count == process.env.REACT_APP_INVEST_HOLD)
-                UpdatePayment(bal.Platform.count/parseInt(process.env.REACT_APP_INVEST_HOLD!.substring(0,1)),cloud,parseInt(data.Platform.count));
+              if(bal.Platform.count + data.Platform.count >= 700)
+                  UpdatePayment((bal.Platform.count+data.Platform.count)/7,cloud);
               else
                    cloud.update("Platform.count", Action(1,bal.Platform.count,parseInt(data.Platform.count),"N"));
            cloud.update("Platform.backup", Action(1,bal.Platform.backup ? bal.Platform.backup : bal.Platform.count,parseInt(data.Platform.count),"N"));
         }else 
               cloud.set(data);
-     cloud.collection(process.env.REACT_APP_USER_DEBIT!).doc().set({nodes:{date:DateHumanFormated(),timestamp:Date.now(),amount:data.Platform.count}})
-
-        
+     cloud.collection(process.env.REACT_APP_USER_DEBIT!).doc().set({nodes:{date:DateHumanFormated(),timestamp:Date.now(),amount:data.Platform.count}})    
 }
 
 
 
-async function UpdatePayment(arg0: number, cloud:FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,bal:number) {
-        cloud.update("Platform.count",bal);
+async function UpdatePayment(arg0: number, cloud:FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>) {
+        cloud.update("Platform.count",0);
            let docs =  cloud.collection(process.env.REACT_APP_INVESTORS_LIST!);
             (await docs.get()).forEach((v) => {
                     let doc:any = CheckForNode(v.data());
@@ -483,7 +480,23 @@ export const UserFund = functions.https.onRequest(async (req,res) => {
 
 
 
-  
+export const Groupstatus = functions.https.onRequest(async (req,res) => {
+    let time_stamp_list = [];
+     let users = sec_admin.listUsers();
+       let user = (await users).users;
+        for(let y=0; y < user.length; y++){
+          let hold = await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user[y].email!).collection(user[y].email!+"_stakes").listDocuments();
+           for(let p=0; p < hold.length; p++){  
+              let mine:any = CheckForNode((await hold[y].get()).data())
+                let doc = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user[y].email!).collection(user[y].email!+"_stakes").doc(mine.User.doc_id).get();
+                    let time:any = CheckForNode((await doc).data());
+                        var stamp = Date.now() - +(new Date(time.User.timestamp));
+                        time_stamp_list.push({node:{email:user[y].email!,doc_id:time.User.doc_id,timestamp:time.User.timestamp}})
+                    }   
+            }
+            res.json({message:time_stamp_list})
+        
+})  
   
  
 
@@ -642,16 +655,16 @@ export const AddHandler = functions.https.onRequest(async (req,res) => {
                                   PlatformSave({Platform:{count:LoadUp(user.User.bot_size)/2}});
                                     group.update("User.profit",Action(1, user.User.bot_size != 1 ? LoadUp(user.User.bot_size)/2 : 0, o.User.profit,"N"))
                                         users.update("User_details.gas", Action(0, user.User.bot_size != 1 ? LoadUp(user.User.bot_size) : 0,use.User_details.gas,"N"))
-                                      res.json({message:[{n1:"Spot added"+user.User.bot_size}]})
+                                      res.json({message:[{n1:"Spot added"}]})
                             }else
-                                res.json({message:[{n1:"Spot not added !"}]})
+                                res.json({message:[{n1: !CheckBoT(use,user) ? "Spot not added !" : "Insufficient funds pls purchase gas !"}]})
         }
 });
 
 
 
 function CheckBoT(use:any, user:any){
-  return  use.User_details.gas >= Action(0,use.User_details.gas,LoadUp(user.User.bot_size),"N")
+  return  use.User_details.gas >= (Action(0,use.User_details.gas,LoadUp(user.User.bot_size),"N"))
 }
 
 

@@ -18,22 +18,20 @@ type User = {
 } 
 
 
-type Trans = {
-  User:{
-    timestamp:number,
-    amount:number,
-    date:string
-  }      
-}
+
+
+
+
 
 export const  AuthBal = functions.https.onRequest(async (req,res) => {
     let user:User = req.body;
     let tracking:any;
     let data:any
-      const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!);
+    if(MACHINE_CHECK(req,res)){
+       const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!);
          let get = await doc.collection(process.env.REACT_APP_INVESTORS_LIST!).doc(user.User.key == 0 ? DechiperData(user.User.investor_id) : user.User.investor_id).get();
 
-        if(get.exists)
+         if(get.exists)
             data = CheckForNode(get.data())
 
            if((await doc.get()).data() != null)
@@ -50,30 +48,32 @@ export const  AuthBal = functions.https.onRequest(async (req,res) => {
               else
                   res.json({messae:"Invalid command !"})
          
-    }
+       }
+   }
 )
 
 
 export const AuthInvestorWithdraw = functions.https.onRequest(async (req,res) => {
     let user:User = req.body;
-    const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
-                 .collection(process.env.REACT_APP_INVESTORS_LIST!).doc(user.User.token);
-   if((await doc.get()).exists){
-    let get = await doc.get();
-       let data:any = CheckForNode(get.data())
-         if(doc.id &&  data.User.investor_id == user.User.token){
-             if(data.User.amount >= user.User.amount && data.User.amount > 0){
-                  doc.update("User.amount",Action(0,data.User.amount,user.User.amount,"N"));
-                    doc.collection(process.env.REACT_APP_PLATFORM!).doc().set({User:{timestamp:Date.now(),amount:data.User.amount,date:DateHumanFormated()}});
-                 res.json({message:"Account Debited"})
-             }else
-                res.json({message:"Insufficient funds !"})
-          }else
-             res.json({message: "Wrong Credentails"})
+    const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!).collection(process.env.REACT_APP_INVESTORS_LIST!).doc(user.User.token);
+    if(MACHINE_CHECK(req,res)){
+        if((await doc.get()).exists){
+         let get = await doc.get();
+          let data:any = CheckForNode(get.data())
+            if(doc.id &&  data.User.investor_id == user.User.token){
+                if(data.User.amount >= user.User.amount && data.User.amount > 0){
+                      doc.update("User.amount",Action(0,data.User.amount,user.User.amount,"N"));
+                        doc.collection(process.env.REACT_APP_PLATFORM!).doc().set({User:{timestamp:Date.now(),amount:user.User.amount,date:DateHumanFormated()}});
+                    res.json({message:"Account Debited"})
+                }else
+                    res.json({message:"Insufficient funds !"})
+              }else
+                res.json({message: "Wrong Credentails"})
+            }
+            else
+              res.json({message:"Unknown User"})
         }
-        else
-          res.json({message:"Unknown User"})
-    }
+      }
 )
 
 
@@ -83,24 +83,36 @@ export const AuthInvestorWithdraw = functions.https.onRequest(async (req,res) =>
 export const PullInvestorTransaciation = functions.https.onRequest(async (req,res) => {
   let user:User = req.body;
   let trasn_list = []
-  const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!)
-               .collection(process.env.REACT_APP_INVESTORS_LIST!).doc(DechiperData(user.User.token));
-          if((await doc.get()).exists){
-            let get = await doc.get();
-              let data:any = CheckForNode(get.data())
-                if(doc.id &&  data.User.investor_id ==DechiperData(user.User.token)){     
-                           let list = await doc.collection(process.env.REACT_APP_PLATFORM!).listDocuments();
+  if(MACHINE_CHECK(req,res)){
+      const doc = db_sec.collection(process.env.REACT_APP_PLATFORM!).doc(process.env.REACT_APP_TABLE!).collection(process.env.REACT_APP_INVESTORS_LIST!).doc(DechiperData(user.User.token));
+              if((await doc.get()).exists){
+                let get = await doc.get();
+                  let data:any = CheckForNode(get.data())
+                    if(doc.id &&  data.User.investor_id == DechiperData(user.User.token)){     
+                          let list = await doc.collection(process.env.REACT_APP_PLATFORM!).listDocuments();
                             for(let y=0; y<list.length; y++)
                                 trasn_list.push((await list[y].get()).data());
-                        res.json({message:{map:{trasn_list}}});
-                   
-                  }else
-                    res.json({message: "Wrong Credentails"})
-                }
-                else
-                  res.json({message:"Unknown User"})
-  }
+                          res.json({message:{map:{trasn_list}}});
+                      } else
+                          res.json({message: "Wrong Credentails"})
+                } else
+                      res.json({message:"Unknown User"})
+          }
+     }
 )
+
+
+
+
+function MACHINE_CHECK(req: functions.Request<any>, res:functions.Response<any>): boolean {
+  var user_agents = JSON.parse(process.env.REACT_APP_BROWSERS!);
+     let nope:boolean = false;
+        if(req.headers['user-agent']?.toString().includes(user_agents![user_agents!.length-1].toString())) 
+             nope = true;
+           else
+              res.json({message: "Unauthorized request !"})
+ return nope;
+}
 
 
 
