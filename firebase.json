@@ -5,20 +5,20 @@
   },
   "emulators": {
     "functions": {
-      "port": 1092
+      "port": 1192
     },
     "firestore": {
-      "port": 1093
+      "port": 1193
     },
     "ui": {
       "enabled": true,
-      "port": 1094
+      "port": 1194
     },
     "auth": {
-      "port": 1095
+      "port": 1195
     },
     "hosting": {
-      "port": 1096
+      "port": 1196
     }
   },
   "hosting": {

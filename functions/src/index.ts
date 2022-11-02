@@ -18,7 +18,7 @@ let q:any;
 q = true;
 let  p = 0;
 const domain1 = () => {
-  return p === 1 ? "https://cravetech-9b39c.web.app"  : "http://localhost:3000"
+  return p === 1 ? "https://cravetech-9b39c.web.app"  :  "http://localhost:3000"
 }
 
 const Cravetech = express();

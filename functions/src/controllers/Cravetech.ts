@@ -753,10 +753,10 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
                         let m:any = CheckForNode((await account.get()).data());
                             let group:any = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(m.User.email).collection(m.User.email+"_stakes").doc(m.User.doc_id);
                                 let filter:any = CheckForNode((await group.get()).data()); 
-                                     DeactiveAccout(user.User.user_id,"",res);
-                                        RunFun(filter,user,group,account,res,m.User.doc_id);
+                                     DeactiveAccout(DechiperData(user.User.user_id),"",res);
+                                        RunFun(filter,user,group,res,m.User.doc_id);
                          }else
-                            DeactiveAccout(user.User.user_id,"Invalid request last warning !",res);
+                            DeactiveAccout(DechiperData(user.User.user_id),"Invalid request last warning !",res);
                 }
         }
 )
@@ -765,20 +765,20 @@ export const WithdrawfundsFromGroup = functions.https.onRequest(async (req,res) 
 
 
 export const creator_cancel = functions.https.onRequest(async (req,res) => {
+    
     try{
          let user:GroupCreation = req.body;
           if(await Isvalid(user.User,res,req)){
               let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).collection(user.User.email+"_stakes").doc(user.User.doc_id);
                  if((await group.get()).exists){
                     let filter:any = CheckForNode((await group.get()).data());
-                            if(filter.User.members_emails[0].toString() === user.User.email){
-                                DeactiveAccout(user.User.user_id,"",res); 
-                                  filter.User.members_emails.pop();
-                                     RunFun(filter,user,group,filter.User.members_emails.length <= 0  ?  group : null, res,null);
-                            }else
-                                DeactiveAccout(user.User.user_id,"Permission denied last warning !",res);
+                        if(filter.User.members_emails[0].toString() === user.User.email){
+                             DeactiveAccout(DechiperData(user.User.user_id),"",res); 
+                                RunFun(filter,user,group,res,null);
+                         }else
+                             DeactiveAccout(DechiperData(user.User.user_id),"Permission denied last warning !",res);
                     }else
-                        DeactiveAccout(user.User.user_id,"Group doesn't exist last warning",res);
+                        DeactiveAccout(DechiperData(user.User.user_id),"Group doesn't exist last warning",res);
                 }
         }catch(err ){
             res.json({message: err as Error})
@@ -790,55 +790,57 @@ export const creator_cancel = functions.https.onRequest(async (req,res) => {
 
 
 
-function RunFun(filter:any, user:any, group:any, account:any, res:functions.Response<any>, doc: any) {
+function RunFun(filter:any, user:any, group:any, res:functions.Response<any>, doc: any) {
     if(loopuser(filter.User.members_emails, user.User.email)){
-          DeactiveAccout(user.User.user_id,"",res);
+          DeactiveAccout(DechiperData(user.User.user_id),"",res);
            if(Divide(filter.User.members_emails,filter.User.profit)[0] !== 0)
-                SendOutFunds(Platform(Divide(filter.User.members_emails, filter.User.profit)), filter.User,user,res,group,account,1,doc);    
+                SendOutFunds(Platform(Divide(filter.User.members_emails, filter.User.profit)), filter.User,user,res,1,doc,group);    
             else{
-                  SendOutFunds([],filter.User,user,res,group,account,2,doc);
+                  SendOutFunds([],filter.User,user,res,2,doc,group);
                      res.json({message: "No profit at this time left anyway !"}); 
             }
        }else
-            DeactiveAccout(user.User.user_id,"You are not a valid member last warning !",res);
+            DeactiveAccout(DechiperData(user.User.user_id),"You are not a valid member last warning !",res);
 }
 
 
 
 
 
-function SendOutFunds(profit: number[], group: any, user: any, res: functions.Response<any>,  group_state: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,account:any, init:number, doc_node:any) {
+async function SendOutFunds(profit: number[], use: any, user: any, res: functions.Response<any>,init:number, doc_node:any, group_ref:any) {
     
-                     //check for group liq
-                    if(account !== null)
-                          group_state.delete(); 
-                         else{
-                             group_state.update({User:{
-                                    members_emails: Remove(group.members_emails,user.User.user_id), 
-                                    email:group.email,
-                                    IMEI:group.IMEI,
-                                    user_id:group.user_id,
-                                    groupName: group.groupName,
-                                    amount: group.amount,
-                                    liquidator_size: group.liquidator_size, 
-                                    miner_stake: group.miner_stake,
-                                    timestamp: group.timestamp,
-                                    doc_id: group.doc_id,
-                                    profit: init !== 2 ? Math.floor(Action(0,profit[0],group.profit,"N")) : 0,
-                                    loss: group.loss,
-                                    liquidity: Action(0,group.liquidity,group.amount,"N"),
+                 //check for group liq
+                   let check:any = CheckForNode((await group_ref.get()).data());
+                    if(Remove(check.User.members_emails,user.User.email).length <= 0){
+                          UpdateUserAccount(res,user,1,"Account funded",undefined,4,check.User.liquidity+check.User.profit,0)
+                             group_ref.delete(); 
+                       }else{
+                             group_ref.update({User:{
+                                    members_emails: Remove(use.members_emails,user.User.email), 
+                                    email:use.email,
+                                    IMEI:use.IMEI,
+                                    user_id:use.user_id,
+                                    groupName: use.groupName,
+                                    amount: use.amount,
+                                    liquidator_size: use.liquidator_size, 
+                                    miner_stake: use.miner_stake,
+                                    timestamp: use.timestamp,
+                                    doc_id: use.doc_id,
+                                    profit: init !== 2 ? Math.floor(Action(0,profit[0],use.profit,"N")) : 0,
+                                    loss: use.loss,
+                                    liquidity: Action(0,use.liquidity,use.amount,"N"),
                                     active: false,
-                                    odd: group.odd
+                                    odd: use.odd
                                  }});  
                                     
 
-                            UpdateUsersNodes(Remove(group.members_emails,user.User.email),doc_node);
+                            UpdateUsersNodes(use.members_emails,doc_node,user.User.email);
 
                             //check if group.members_emails.length <= 0  ? run script : continue flow           
                             //check for user account funder (i.e) app or group 
                             //also check for for crediting or debiting or zero group funds at request time.  
-                                if(Action(0,group.profit,profit[0],"N") !== 0) 
-                                    UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 5 : 4 ,init !== 2 ? profit[0] : group.amount,group.amount);
+                                if(Action(0,use.profit,profit[0],"N") !== 0) 
+                                    UpdateUserAccount(res,user,init !== 2 ? 1 : 2,"Account funded",undefined, init !== 2 ? 5 : 4 ,init !== 2 ? profit[0] : use.amount,use.amount);
                 
                 }
          
@@ -850,7 +852,7 @@ function SendOutFunds(profit: number[], group: any, user: any, res: functions.Re
 
 
 
-async function UpdateUsersNodes(members: any[], id:any){
+async function UpdateUsersNodes(members: any[], id:any,email:any){
     console.log("M1",members);
     if(id !== null)
         for(let i =0; i < members.length; i++){ 
@@ -866,6 +868,9 @@ async function UpdateUsersNodes(members: any[], id:any){
                         
                         })}}
              }
+
+             if(email !== null)
+               Remove(members,email)
 }
 
 
@@ -1004,7 +1009,7 @@ async function UpdateUserAccount(res: functions.Response<any>, user:any, i:numbe
     let doc_ = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
       if(credit_node === 3)
             platform = db_sec.collection(process.env.REACT_APP_ADMIN_DB!).doc(process.env.REACT_APP_USER_CREDIT!);
-              if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
+        if((await db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email).get()).exists){
                 const data:any = CheckForNode((await doc_.get()).data());
                     if(credit_node === 3)
                         adata = CheckForNode((await platform.get()).data());
@@ -1153,7 +1158,7 @@ export const JoinGroupCheck = functions.https.onRequest(async (req,res) =>{
                                                                               j.set({User:{timestamp:groupcheck.User.timestamp, members_emails:grouplist, groupName:groupcheck.User.groupName,doc_id:groupcheck.User.doc_id,ref_id:j.id,email:user.User.creator_email}});
                                                                                if(groupcheck.User.liquidator_size.toString() === grouplist.length.toString())
                                                                                        creator.update("User.active",true);    
-                                                                                         UpdateUsersNodes(grouplist,creator.id);
+                                                                                         UpdateUsersNodes(grouplist,creator.id,null);
                                                                                             res.json({message:"You have been accepted"});           
                                                 }
                                                  else
@@ -1206,7 +1211,8 @@ async function innerLoop(raw2: any[]): Promise<any>{
         for(let m=0; m<raw2.length; m++){
             node = CheckForNode(raw2[m]);
                 let group = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(node.User.email).collection(node.User.email+"_stakes").doc(node.User.doc_id).get();
-                  let nodes:any = CheckForNode((await group).data());
+                if((await group).exists){ 
+                    let nodes:any = CheckForNode((await group).data());
                         let e ={User:{
                                     members_emails:nodes.User.members_emails, 
                                     email:nodes.User.email,
@@ -1217,8 +1223,10 @@ async function innerLoop(raw2: any[]): Promise<any>{
                                     loss:nodes.User.loss,       
                                     liquidity:nodes.User.liquidity,
                                     ref_id:node.User.ref_id, 
+                                    doc_id:node.User.doc_id, 
                                 }}
                       raw.push(e);
+                  }
             }
             return raw;  
 }
@@ -1426,10 +1434,14 @@ async function DeactiveAccout(user_id:string, msg:string, res:functions.Response
             if(!(await doc.get()).exists && msg.trim().length <= 0)
                 doc.set({User:{count:0}});
             else
-                if((await doc.get()).exists && msg.trim().length > 0){
+              if((await doc.get()).exists && msg.trim().length <= 0)
+                  doc.update({User:{count:0}});
+                else
+                   if((await doc.get()).exists && msg.trim().length > 0){
                     let out:any = CheckForNode((await doc.get()).data());
-                      doc.update({User:{count:out.User.count+1}});
+                       doc.update({User:{count:out.User.count+1}});
                 }
+
             if((await doc.get()).exists)
                 QuickCheck(user_id,msg,res,doc); 
             else
@@ -1453,7 +1465,7 @@ async function QuickCheck(user_id:string, ms: string, res: functions.Response<an
 
 function checkstats(m:any):boolean{ 
         let p:any = CheckForNode(m);
-      return  p.User.count === 2 ? true:false;
+      return  p.User.count >= 2 ? true:false;
 }
 
 
