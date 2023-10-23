@@ -222,9 +222,9 @@ type Qs = {
     Q:{
         Category: string,
         question: string,
-        a1:  string,
-        a2:  string,
-        a3:  string,
+        a1: string,
+        a2: string,
+        a3: string,
         a4: string,  
         id:number
     }
@@ -235,30 +235,29 @@ type Qs = {
 export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
    
      try{
-        let user: Register = req.body     
-            if(MACHINE_CHECK(req)){
-                        sec_admin.createUser({ 
-                                email: user.User.email,  
-                                emailVerified:false,
-                                password:user.User.password,
-                                displayName:ChiperData(user.User.password),
-                                disabled:false,
-                            }).then(async (record) => {
+           let user: Register = req.body     
+               if(MACHINE_CHECK(req)){
+                              sec_admin.createUser({ 
+                                    email: user.User.email,  
+                                    emailVerified:false,
+                                    password:user.User.password,
+                                    displayName:ChiperData(user.User.password),
+                                    disabled:false,
+                               }).then(async (record) => {
                                     user.User.user_id = record.uid;
                                     user.User.timeStamp = Date.now();
                                     user.User.device_token = "n/a";
                                     user.User.password = "n/a"; 
 
-                                  if(user.User_details.bal === 0  && user.User_details.gas === 0){
-                                        user.User_details.bal = 0;
-                                        user.User_details.gas = 0;
-                                        user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
+                                    user.User_details.bal = 0;
+                                    user.User_details.gas = 0;
+                                    user.User.IMEI = uuid()+"_"+Date.now()+"_"+uuid()
+
                                     if(await REMOVENODE(user,1,db_sec,record.email) &&  await REMOVENODE(null,2,db,record.email))
-                                                return res.json({message: "Account created"})
-                                         else
-                                                return res.json({message: "Account wasn't created !"});
-                                    }else
-                                        return res.json({message: "Account wasn't created !!"});
+                                           return res.json({message: "Account created"})
+                                    else
+                                           return res.json({message: "Account not created !"});
+                                 
 
                                 }).catch((err => {
                                     return  res.json({message: err as Error })
@@ -269,6 +268,106 @@ export const RegisterNewUser = functions.https.onRequest(async (req,res) => {
                     res.json({ message: err as Error})
          }
 })
+
+
+
+
+
+
+
+
+export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
+    let user: GroupWithdrawal = req.body;
+     let user_node = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
+        if((await user_node.get()).exists){
+            sec_admin.verifyIdToken(user.User.user_id)
+                .then(async (resP) => {
+                   let m:any = CheckForNode((await user_node.get()).data());
+                          res.json({message:{User:{email:m.User.User.email, IMEI:ChiperData(m.User.User.IMEI), user_id:ChiperData(m.User.User.user_id), avatar:m.User.User.avatar}}});    
+                       }).catch(err => {
+
+                        const actionCode = {url:'https://cravetech-9b39c.web.app',handleCodeInApp: true,};  
+
+                            sec_admin.generateSignInWithEmailLink(user.User.email!,actionCode)
+                              .then((responese) => {
+                                let errand;
+   
+                                var smtpConfig = {
+                                    host: process.env.HOST,
+                                    port: 465,
+                                    secure: true, 
+                                    auth: {
+                                        user: process.env.USER,
+                                        pass: process.env.PASSWORD
+                                }};
+                                
+                            const transport = nodemailer.createTransport(smtpConfig);
+                        
+                            var mailOptions = {
+                                from: process.env.USER,
+                                to: user.User.email,
+                                subject:"Tokcoin Signin Link",
+                                text: responese.toString(),
+                            };
+            
+                            transport.sendMail(mailOptions,function(error, info){
+                                   if (error) 
+                                       errand = error.toString();
+                                   else 
+                                       errand = 'Email sent: ' + info.response;
+                                 res.json({message: errand})
+                                })
+                    
+                        }).catch(err => {
+                            res.json({message: err as Error})
+                       })
+                    })
+            }else { 
+                sec_admin.getUserByEmail(user.User.email)
+                     .then(use => {
+                            sec_admin.deleteUser(use.uid)
+                                .then(() =>  res.json({message:"Account Doesn't exist !"})).catch(err  => res.json({message:"Error deleting user !"}))
+                           }).catch(err => {
+                            res.json({message: "Error occured finding user !"})
+                     })}
+                          
+})
+
+
+
+
+
+
+
+
+
+
+export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,res) => {
+     let user: Loging = req.body;     
+       sec_admin.getUserByEmail(user.User.mail)
+               .then(async (auths) => {
+                  if(user.User.pass === DechiperData(auths.displayName!)){
+                    let exists = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail);
+                       if((await exists.get()).data()){
+                            let done = (await exists.update("User.device_token",user.User.dv)).writeTime
+                                if(done){
+                                  let data:any = CheckForNode((await exists.get()).data());
+                                    res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});    
+                                }else
+                                  res.json({message: "Pls reinstall your device !"});
+                            }else
+                               res.json({message: "No account found !"});
+                         }else
+                            res.json({message: "Password or email combination not correct !"});
+             }).catch(err => {
+                  res.json({message: "No account associated with request !"});
+            })
+     
+})
+
+
+
+
 
 
 
@@ -352,99 +451,6 @@ export const AddInvestor = functions.https.onRequest(async (req,res) => {
    }
 
 })
-
-
-
-
-
-
-
-export const SignInWithEmail = functions.https.onRequest(async (req,res) => {
-        let user: GroupWithdrawal = req.body;
-         let user_node = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.email);
-            if((await user_node.get()).exists){
-                sec_admin.verifyIdToken(user.User.user_id)
-                    .then(async (resP) => {
-                       let m:any = CheckForNode((await user_node.get()).data());
-                              res.json({message:{User:{email:m.User.User.email, IMEI:ChiperData(m.User.User.IMEI), user_id:ChiperData(m.User.User.user_id), avatar:m.User.User.avatar}}});    
-                           }).catch(err => {
-
-                            const actionCode = {url:'https://cravetech-9b39c.web.app',handleCodeInApp: true,};  
-
-                                sec_admin.generateSignInWithEmailLink(user.User.email!,actionCode)
-                                  .then((responese) => {
-                                    let errand;
-       
-                                    var smtpConfig = {
-                                        host: process.env.HOST,
-                                        port: 465,
-                                        secure: true, 
-                                        auth: {
-                                            user: process.env.USER,
-                                            pass: process.env.PASSWORD
-                                    }};
-                                    
-                                const transport = nodemailer.createTransport(smtpConfig);
-                            
-                                var mailOptions = {
-                                    from: process.env.USER,
-                                    to: user.User.email,
-                                    subject:"Tokcoin Signin Link",
-                                    text: responese.toString(),
-                                };
-                
-                                transport.sendMail(mailOptions,function(error, info){
-                                       if (error) 
-                                           errand = error.toString();
-                                       else 
-                                           errand = 'Email sent: ' + info.response;
-                                     res.json({message: errand})
-                                    })
-                        
-                            }).catch(err => {
-                                res.json({message: err as Error})
-                           })
-                        })
-                }else { 
-                    sec_admin.getUserByEmail(user.User.email)
-                         .then(use => {
-                                sec_admin.deleteUser(use.uid)
-                                    .then(() =>  res.json({message:"Account Doesn't exist !"})).catch(err  => res.json({message:"Error deleting user !"}))
-                               }).catch(err => {
-                                res.json({message: "Error occured finding user !"})
-                         })}
-                              
-})
-
-
-
-
-
-export const  SignInWithEmailAndPassord = functions.https.onRequest(async (req,res) => {
-         let user: Loging = req.body;     
-           sec_admin.getUserByEmail(user.User.mail)
-                   .then(async (auths) => {
-                      if(user.User.pass === DechiperData(auths.displayName!)){
-                        let exists = db_sec.collection(process.env.REACT_APP_USER_DB!).doc(user.User.mail);
-                           if((await exists.get()).data()){
-                                let done = (await exists.update("User.device_token",user.User.dv)).writeTime
-                                    if(done){
-                                      let data:any = CheckForNode((await exists.get()).data());
-                                        res.json({message:{User:{email:data.User.email, IMEI:ChiperData(data.User.IMEI), user_id:ChiperData(data.User.user_id), avatar:data.User.avatar}}});    
-                                    }else
-                                      res.json({message: "Pls reinstall your device !"});
-                                }else
-                                   res.json({message: "No account found !"});
-                             }else
-                                res.json({message: "Password or email combination not correct !"});
-                 }).catch(err => {
-                      res.json({message: "No account associated with request !"});
-                })
-         
-    })
-
-
-
 
 
 
@@ -703,14 +709,13 @@ export const  CA = functions.https.onRequest(async (req,res) => {
 
 
 
-let list = [{serial:987654569,mode:"regular",amount:5},
-            {serial:43212567,mode:"buget",amount:10},
-             {serial:765436789,mode:"whip",amount:25},
-             {serial:87654569,mode:"semi whip",amount:35},
-             {serial:54309823,mode:"chief whip",amount:45},
-             {serial:74512575,mode:"silver",amount:50},
-             {serial:19812575,mode:"gold",amount:75},
-             {serial:19892574,mode:"premium",amount:100}];
+let list = [
+             {serial:987654569,mode:"regular",amount:100},
+             {serial:43212567,mode:"buget",amount:200},
+             {serial:765436789,mode:"whip",amount:500},
+             {serial:87654569,mode:"semi whip",amount:1000},
+             {serial:54309823,mode:"chief whip",amount:2000}
+            ]
 
 
 
@@ -1523,7 +1528,7 @@ function Divide(users: any[], amount:number):any[]{
 function Platform(money:any){
     let fund = [];
      fund.push(money[0]);
-       if(money[1] !== NaN && money[1] !== undefined && money[1] !== null)
+       if(!Number.isNaN(money[1]) && money[1] !== undefined && money[1] !== null)
             PlatformSave({Platform:{count:parseInt(money[1])}});
     return fund;
 }

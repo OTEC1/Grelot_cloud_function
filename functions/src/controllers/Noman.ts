@@ -21,7 +21,7 @@ publicface:string,
 //Image Resizer
 export const ImgResize = functions.https.onRequest((request, respones)=>{
     let  e: BaseUrl = request.body;
-    console.log(e.publicface, e.url);
+    //console.log(e.publicface, e.url);
     cloudinary.v2.config({
         cloud_name:process.env.REACT_APP_CLOUNDINARY_NAME,
         api_key:process.env.REACT_APP_CLOUDINARY_KEY,
@@ -32,13 +32,39 @@ export const ImgResize = functions.https.onRequest((request, respones)=>{
         {public_id:e.publicface},
         function(err,result){
                 console.log(err);
-
                 return respones.json({
-                    message: result?.created_at
+                    message: result?.url
                 })
              
             });
 });
+
+
+
+
+
+
+export const DeleteCloud = functions.https.onRequest((request, respones)=>{
+    let  e: BaseUrl = request.body;
+    //console.log(e.publicface, e.url);
+    cloudinary.v2.config({
+        cloud_name:process.env.REACT_APP_CLOUNDINARY_NAME,
+        api_key:process.env.REACT_APP_CLOUDINARY_KEY,
+        api_secret:process.env.REACT_APP_CLOUNDINARY_SECRET
+    })
+    cloudinary.v2.uploader.destroy(e.publicface,
+        function(err,result){
+              if(err)
+                   return respones.json({
+                    message: err
+                  })
+                if(result)
+                    return respones.json({
+                        message: result?.url
+                 })
+        });
+});
+
 
 
 
@@ -71,7 +97,7 @@ export const DeletePost = functions.https.onRequest(async (request,response) => 
                         bucket.deleteObject(params)
                           .on('httpDone', (e) => { 
                              response.json({
-                                message : "Thumnail Uploaded"
+                                message : "Thumnail Deleted"
                             })
                          })
                             .send((err) => {

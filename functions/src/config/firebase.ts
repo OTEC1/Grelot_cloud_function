@@ -32,5 +32,5 @@ const db_sec = admin.firestore(sec);
 const sec_admin = admin.auth(sec);
 db.settings( { timestampsInSnapshots: true })
 db_sec.settings( { timestampsInSnapshots: true })
-export {admin,sec_admin,db,db_sec};
+export {admin,db,sec_admin,db_sec};
 
