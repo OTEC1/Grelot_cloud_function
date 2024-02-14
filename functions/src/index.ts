@@ -3,12 +3,13 @@ import { dynamicpostRender, webdealitAddMovie, webdealitAddMusic, webdealitAddPo
 import { Grelot_lock, records, reaction_count, listofproducts, listofUserAgeGrade, pushyapi, Sign_up_new_user, Paid_cart_uploaded, Notificationpush, UserlocationPhoneNumber,Sign_in_user_google, LoginUser, GetUserDetails, VerifyUser, Addvendorinvestment, GetvendorInvestment, Uploadproducts,dynamicpostrender2} from "./controllers/Grelot";
 import {AuthUserSession,RegisterNewUser,UserFund,ManageUserAcct,GroupCreate,JoinGroupCheck,WithdrawfundsFromGroup,GetListOfCreatedGroup,LoadActiveGroup,LoadInactiveGroup, User_action,Voches, creator_cancel,purchasevoches,ExchangeFunds, SignInWithEmail,GenerateRandom, CloudHandler, AddHandler, CA, VNODES, VnodeDeal,AddInvestor,updateUser, SignInWithEmailAndPassord,Groupstatus} from './controllers/Cravetech';
 import { Noman_id_genrator, ImgResize, DeletePost,getTimeStamp, getUserAgent, DeleteCloud} from "./controllers/Noman";
-import { CloudHandlerCall, DynamicpostRender} from "./controllers/Webflystore";
+import { DynamicpostRender} from "./controllers/Webflystore";
 import { Registeruser } from "./controllers/Monclaris";
 import cookieParser = require("cookie-parser");
 import  * as express from 'express';
 import * as cors1 from 'cors';
 import { AuthInvestorWithdraw, AuthBal, PullInvestorTransaciation } from "./controllers/TokcoinInvest";
+import { SendNofication, SendUpdate } from "./controllers/Notification";
 const cors = cors1(({ origin: true }));
 
 
@@ -82,13 +83,6 @@ Cravetech.post("/PullTrans",PullInvestorTransaciation);
 
 
 
-
-
-
-
-
-
-
 Cravetech.post("", GenerateRandom);
 Cravetech.post("", ManageUserAcct);
 Cravetech.post("", AuthUserSession);
@@ -102,7 +96,6 @@ exports.Cravetech = functions.https.onRequest(Cravetech);
 const Webflystore = express();
 Webflystore.use(cors);
 Webflystore.post("/DynamicpostRender", DynamicpostRender);
-Webflystore.post("/Notificationwebflystore", CloudHandlerCall);
 exports.Webflystore = functions.https.onRequest(Webflystore);
 
 
@@ -144,6 +137,9 @@ exports.WebflyClick = functions.https.onRequest(WebflyClick);
 
 
 
+
+
+
 const Noman = express();
 Noman.use(cors);
 Noman.get("/Noman_id_genrator",Noman_id_genrator);
@@ -152,7 +148,11 @@ Noman.post("/ImgDelete",DeleteCloud);
 Noman.post("/DeletePost",DeletePost);
 Noman.get("/getTimeStamp",getTimeStamp);
 Noman.get("/getUserAgent",getUserAgent);
+Noman.post("/SendNofication",SendNofication);
 exports.Noman = functions.https.onRequest(Noman);
+
+
+
 
 
 

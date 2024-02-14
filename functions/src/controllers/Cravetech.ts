@@ -4,7 +4,7 @@ import * as nodemailer from "nodemailer"
 import { v4 as uuid } from 'uuid'
 import axios from "axios";
 import * as crypto from 'crypto'
-import { SendUpdate} from './Notification';
+import { NotificationPayload, SendUpdate} from './Notification';
 require('dotenv').config()
 
 
@@ -528,10 +528,42 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
                                  if(p.User.Self && p.User.input > 0 && w.User.liquidity > Action(3,w.User.odd,p.User.input,"N") && w.User.active) {
                                     if(!p.User.once){
                                           if(q.User_details.gas > p.User.input)
-                                              CalculateAndFund(g,u,vn,p,w,q); 
+                                              CalculateAndFund(g,u,vn,p,w,q);
+
                                                   else {
-                                                    let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Low on gas virtual node "+p.User.doc_id+" suspended !"},  options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id, body:"Low on gas virtual node "+p.User.doc_id+" suspended !"}}}
-                                                      SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,q.User)
+                                                      
+                                                    let e:NotificationPayload ={
+
+                                                        payload: {
+                                                            email: q.User.email,
+                                                            stake_id: p.User.doc_id,
+                                                            pic: q.User.avater,
+                                                            body: "Low on gas virtual node " + p.User.doc_id + " suspended !",
+                                                            doc_id: ''
+                                                          }, 
+                                                                    options: { 
+                                                                            notification: 
+                                                                                    { pic: "", 
+                                                                                        badge: 1, 
+                                                                                        sound: "ping.aiff", 
+                                                                                        email: q.User.email, 
+                                                                                        stake_id: p.User.doc_id, 
+                                                                                        body: "Low on gas virtual node " + p.User.doc_id + " suspended !" 
+                                                                                    } 
+                                                                      },
+
+                                                            Key: {  
+                                                                token: 0
+                                                            },
+                                                          
+                                                            User: {
+                                                                to: q.User.device_token,
+                                                            }
+                                                        }
+                                                 
+                                                      SendUpdate(e)
+
+
                                                 }
                                     }else 
                                           if(p.User.once){
@@ -560,25 +592,123 @@ export const CloudHandler = functions.runWith({timeoutSeconds:300,memory:"512MB"
                                                             if(n === liveVnodes.length-1)
                                                                 res.json({message: "ok"});
                                                     }else { 
-                                                        let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Invalid virtual node  cancel or your account would be suspended !"}, 
-                                                                    options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id, body:"Invalid virtual node  cancel or your account would be suspended !"}}}
-                                                           SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,q.User);
+                                           
+                                                      
+
+
+                                                           let e:NotificationPayload ={
+
+                                                                payload: {
+                                                                    email: q.User.email,
+                                                                    stake_id: p.User.doc_id,
+                                                                    pic: q.User.avater,
+                                                                    body: "Invalid virtual node cancel or your account would be suspended !",
+                                                                    doc_id: ''
+                                                                }, 
+                                                                        options: { 
+                                                                                notification: 
+                                                                                        { pic: "", 
+                                                                                            badge: 1, 
+                                                                                            sound: "ping.aiff", 
+                                                                                            email: q.User.email, 
+                                                                                            stake_id: p.User.doc_id, 
+                                                                                            body: "Invalid virtual node cancel or your account would be suspended !" 
+                                                                                        } 
+                                                                          },
+    
+                                                                Key: {  
+                                                                    token: 0
+                                                                },
+                                                              
+                                                                User: {
+                                                                    to: q.User.device_token,
+                                                                }
+                                                            }
+                                                     
+
+                                                            SendUpdate(e);
                                                               DeactiveAccout(q.User.user_id,"Invalid request last warning !",res);
+                                                              
                                                     }
                                                  }else {
-                                                    let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"You are low on gas pls purchase !"},
-                                                                options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id, body:"You are low on gas pls purchase !"}}}
-                                                        SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,q.User);
+
+                                                                
+                                                           let e:NotificationPayload ={
+
+                                                            payload: {
+                                                                email: q.User.email,
+                                                                stake_id: p.User.doc_id,
+                                                                pic: q.User.avater,
+                                                                body: "You are low on gas pls purchase !",
+                                                                doc_id: ''
+                                                            }, 
+                                                                    options: { 
+                                                                            notification: 
+                                                                                    { pic: "", 
+                                                                                        badge: 1, 
+                                                                                        sound: "ping.aiff", 
+                                                                                        email: q.User.email, 
+                                                                                        stake_id: p.User.doc_id, 
+                                                                                        body: "You are low on gas pls purchase !" 
+                                                                                    } 
+                                                                      },
+
+                                                            Key: {  
+                                                                token: 0
+                                                            },
+                                                          
+                                                            User: {
+                                                                to: q.User.device_token,
+                                                            }
+                                                        }
+                                                 
+
+                                                        SendUpdate(e);
+                                                        
                                                            res.json({message: "User Stake dropped !"});   
                                                  }
                                                      
                                             }else {
                                                 g.update("User.active",false);
                                                     for(let m=0;  m < [w.User.members_emails].length; m++) {
-                                                        let e:any ={payload:{email:q.User.email,stake_id:p.User.doc_id,pic:q.User.avater,body:"Group "+w.User.groupName+" is low on gas group suspended !"}, 
-                                                                    options: {notification: {badge: 1,sound: "ping.aiff",email:q.User.email,stake_id:p.User.doc_id,body:"Group "+w.User.groupName+" is low on gas group suspended !"}}}
-                                                            let dump = CheckForNode((await DocLookUp(db_sec,w.User.members_emails[m]).get()).data())    
-                                                                SendUpdate(process.env.PUSHY_TOKCOIN_KEY,e,dump.User);
+
+                                                        let dump:any = CheckForNode((await DocLookUp(db_sec,w.User.members_emails[m]).get()).data())  
+                                                        
+                                                                let e:NotificationPayload ={
+
+                                                                    payload: {
+                                                                        email: q.User.email,
+                                                                        stake_id: p.User.doc_id,
+                                                                        pic: q.User.avater,
+                                                                        body: "Group "+w.User.groupName+" is low on gas group suspended !",
+                                                                        doc_id: ''
+                                                                    }, 
+                                                                            options: { 
+                                                                                    notification: 
+                                                                                            { pic: "", 
+                                                                                                badge: 1, 
+                                                                                                sound: "ping.aiff", 
+                                                                                                email: q.User.email, 
+                                                                                                stake_id: p.User.doc_id, 
+                                                                                                body: "Group "+w.User.groupName+" is low on gas group suspended !!" 
+                                                                                            } 
+                                                                              },
+        
+                                                                    Key: {  
+                                                                        token: 0
+                                                                    },
+                                                                  
+                                                                    User: {
+                                                                        to: dump.User.device_token,
+                                                                    }
+                                                                }
+                                                         
+                                                                  
+                                                          
+        
+                                                                SendUpdate(e);
+
+
                                                                     g.update("User.members_emails",[w.User.members_emails[0]]);  
                                                                         if(m == [w.User.members_emails].length-1)
                                                                             res.json({message: "Group Stake Suspended !"})

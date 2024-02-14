@@ -56,9 +56,7 @@ function redireactUrl(d:any, c:any){
 }
 
 
-export const CloudHandlerCall = functions.https.onRequest((req,res) => {
-        //SendUpdate()
-});
+
 
 
 

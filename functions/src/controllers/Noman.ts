@@ -5,18 +5,33 @@ import * as AWS from 'aws-sdk';
 
 
 
-export const Noman_id_genrator = functions.https.onRequest(async (request, respones)=> {
-    respones.json({
-        message: uuid()
-    })
-})
-
-
 
 type BaseUrl = {
-url:string,  
-publicface:string,
+    url:string,  
+    publicface:string,
 }
+
+
+
+
+type VideoConstrants = {
+    url: any,
+    thumbnail:string
+   }
+
+
+
+
+const bucket = new AWS.S3({
+    accessKeyId: process.env.REACT_APP_P1,
+    secretAccessKey: process.env.REACT_APP_P2,
+    apiVersion: process.env.REACT_APP_API_VERSION,
+    httpOptions: {timeout: 0}
+});
+
+    
+
+
 
 //Image Resizer
 export const ImgResize = functions.https.onRequest((request, respones)=>{
@@ -70,20 +85,6 @@ export const DeleteCloud = functions.https.onRequest((request, respones)=>{
 
 
 
-type VideoConstrants = {
- url: any,
- thumbnail:string
-}
-
-
-
-const bucket = new AWS.S3({
-accessKeyId: process.env.REACT_APP_P1,
-secretAccessKey: process.env.REACT_APP_P2,
-apiVersion: process.env.REACT_APP_API_VERSION,
-httpOptions: {timeout: 0}
-});
-
 
 
 export const DeletePost = functions.https.onRequest(async (request,response) => {
@@ -123,3 +124,11 @@ export const getUserAgent = functions.https.onRequest(async (req,res) => {
     res.json({agent:  req.headers['user-agent']})
 })
 
+
+
+
+export const Noman_id_genrator = functions.https.onRequest(async (request, respones)=> {
+    respones.json({
+        message: uuid()
+    })
+})
